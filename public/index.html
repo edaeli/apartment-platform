@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Учебный каталог квартир и домов в Ереване: аренда и продажа.">
+  <title>Свой адрес — квартиры и дома в Ереване</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="/" aria-label="Свой адрес — главная"><span class="brand-icon" aria-hidden="true">⌂</span> свой адрес<span class="brand-dot">.</span></a>
+    <a class="nav-link" href="#catalog">Каталог жилья <span aria-hidden="true">↗</span></a>
+    <span class="city"><span aria-hidden="true">◎</span> Ереван, Армения</span>
+  </header>
+
+  <main class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="small-dot"></span> КВАРТИРЫ И ДОМА В ЕРЕВАНЕ</span>
+        <h1 id="hero-title">Место, которое<br>станет <em>вашим.</em></h1>
+        <p>Для нового начала, неспешных выходных<br class="desktop-break"> и обычных счастливых дней. Найдите свой адрес.</p>
+        <a class="primary-link" href="#catalog">Посмотреть жильё <span aria-hidden="true">↗</span></a>
+        <div class="hero-note"><span aria-hidden="true">⌂</span> Квартиры и дома · Аренда и продажа</div>
+      </div>
+      <div class="hero-image">
+        <img src="/images/living-room.jpg" alt="Светлая гостиная с мягкой мебелью и большими окнами" fetchpriority="high">
+        <div class="image-label"><span class="small-dot"></span> Ближе к ощущению дома</div>
+        <span class="image-index" aria-hidden="true">01 / ЕРЕВАН</span>
+      </div>
+    </section>
+
+    <section class="catalog" id="catalog" aria-labelledby="catalog-title">
+      <div class="catalog-heading">
+        <div><span class="eyebrow">ВАШ СЛЕДУЮЩИЙ АДРЕС</span><h2 id="catalog-title">Выберите своё пространство</h2></div>
+        <p class="catalog-count" id="catalog-count" aria-live="polite">Загружаем объявления…</p>
+      </div>
+      <div class="catalog-toolbar">
+        <div class="tabs" role="group" aria-label="Тип сделки">
+          <button class="tab active" type="button" data-type="" aria-pressed="true">Всё жильё</button>
+          <button class="tab" type="button" data-type="rent" aria-pressed="false">Аренда</button>
+          <button class="tab" type="button" data-type="sale" aria-pressed="false">Продажа</button>
+        </div>
+        <span class="currency-note">Цены в армянских драмах · AMD</span>
+      </div>
+      <div class="message" id="message" role="status">Загружаем объявления из каталога…</div>
+      <button id="retry" class="retry" type="button" hidden>Попробовать снова</button>
+      <div class="listing-grid" id="listings" aria-busy="true"></div>
+      <noscript><p class="message">Включите JavaScript, чтобы загрузить объявления с сервера.</p></noscript>
+    </section>
+
+    <aside class="demo-note"><span class="demo-mark" aria-hidden="true">i</span><p><strong>Учебный каталог.</strong> Все объекты, цены и адреса — демонстрационные. Фотографии служат иллюстрациями и повторяются в объявлениях. Сервис не принимает реальные заявки.</p></aside>
+  </main>
+  <footer class="footer wrap"><span class="brand footer-brand">свой адрес.</span><span>Учебный проект · 2026</span><span>Сделано для знакомства с домом</span></footer>
+
+  <template id="listing-template">
+    <article class="listing-card">
+      <div class="card-image"><img loading="lazy" alt=""><span class="deal-badge"></span><span class="photo-count"></span></div>
+      <div class="card-content">
+        <p class="district"></p><h3></h3><p class="address"></p>
+        <p class="features"></p><p class="description"></p>
+        <div class="card-bottom"><p class="price"></p><span class="availability"><span class="small-dot"></span> Доступно</span></div>
+      </div>
+    </article>
+  </template>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Generated builds and local IDE settings
+/build*/
+/cmake-build*/
+/.cache/
+/.idea/
+/.vscode/
+.DS_Store
+compile_commands.json
+
+# Working databases, journals, logs and uploads
+/data/
+/uploads/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+__pycache__/
+
+# Secrets (examples may be committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
