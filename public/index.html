@@ -9,7 +9,9 @@
   <link rel="stylesheet" href="/styles.css">
   <script src="/common.js" defer></script>
   <script src="/auth-client.js" defer></script>
+  <script src="/personal-client.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/recommendations.js" defer></script>
 </head>
 <body>
   <header class="header wrap">
@@ -76,6 +78,13 @@
       <noscript><p class="message">Включите JavaScript, чтобы загрузить объявления с сервера.</p></noscript>
     </section>
 
+    <section class="recommendations" aria-labelledby="recommendations-title">
+      <h2 id="recommendations-title">Вам может понравиться</h2>
+      <p id="recommendations-note" class="form-note">Подбираем доступное жильё…</p>
+      <p id="recommendations-message" role="status"></p>
+      <button id="recommendations-retry" class="retry" type="button" hidden>Повторить подборку</button>
+      <div id="recommendations-list" class="listing-grid" aria-busy="true"></div>
+    </section>
     <aside class="demo-note"><span class="demo-mark" aria-hidden="true">i</span><p><strong>Учебный каталог.</strong> Все объекты, цены и адреса — демонстрационные. Фотографии служат иллюстрациями и повторяются в объявлениях. Сервис не принимает реальные заявки.</p></aside>
   </main>
   <footer class="footer wrap"><span class="brand footer-brand">свой адрес.</span><span>Учебный проект · 2026</span><span>Сделано для знакомства с домом</span></footer>

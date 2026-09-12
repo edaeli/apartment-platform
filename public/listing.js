@@ -14,9 +14,11 @@ try {
 let currentListing;
 let bookingPending = false;
 let detailRequest = 0;
+let viewSent = false;
 function renderDetail(item) {
   currentListing = item;
   renderBookingAction();
+  document.querySelector('#detail-favorite').replaceChildren(favoriteControl(item));
   document.title = `${listingTitle(item)} — Свой адрес`;
   document.querySelector('#detail-title').textContent = listingTitle(item);
   document.querySelector('#detail-address').textContent = item.address;
@@ -81,6 +83,12 @@ async function loadDetail() {
       return;
     }
     renderDetail(item);
+    if (!viewSent && Auth.state?.user) {
+      viewSent = true;
+      Auth.post(`/api/listings/${encodeURIComponent(id)}/view`).catch(error => {
+        document.querySelector('#view-message').textContent = 'Просмотр не сохранён. ' + error.message;
+      });
+    }
     detail.hidden = false;
     detailMessage.hidden = true;
   } catch {

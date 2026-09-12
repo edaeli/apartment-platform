@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <limits>
 #include <regex>
+#include <map>
+#include <sstream>
 
 namespace {
 const std::string cookieName = "apartment_session";
@@ -51,6 +53,27 @@ std::int64_t resalePrice(const drogon::HttpRequestPtr& request) {
     return value.asInt64();
 }
 
+// Для этих коротких API разрешены только целые ASCII-значения page/page_size/limit.
+std::map<std::string, std::int64_t> integerParameters(const drogon::HttpRequestPtr& request,
+                                                    const std::map<std::string, std::int64_t>& maximum) {
+    std::map<std::string, std::int64_t> result;
+    std::istringstream parts(request->query());
+    std::string part;
+    while (std::getline(parts, part, '&')) {
+        const auto equal = part.find('=');
+        const auto name = part.substr(0, equal);
+        if (equal == std::string::npos || !maximum.count(name) || result.count(name))
+            throw std::invalid_argument("Неизвестный или повторяющийся параметр URL");
+        const auto value = part.substr(equal + 1);
+        if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
+            throw std::invalid_argument("Параметр " + name + " должен состоять из цифр");
+        result[name] = parseInteger(value, name, 1, maximum.at(name));
+    }
+    if (!request->query().empty() && request->query().back() == '&')
+        throw std::invalid_argument("Пустой параметр URL");
+    return result;
+}
+
 Json::Value userJson(const User& user) {
     Json::Value result;
     result["id"] = Json::Int64(user.id);
@@ -80,9 +103,9 @@ AuthService::AuthService(std::string dbPath, std::string publicPath, int port,
     }
 }
 
-AuthService::Response AuthService::handle(const Request& request, const Action& action) {
+AuthService::Response AuthService::handle(const Request& request, const Action& action, bool allowQuery) {
     try {
-        if (!request->query().empty()) throw std::invalid_argument("Этот API не принимает параметры URL");
+        if (!allowQuery && !request->query().empty()) throw std::invalid_argument("Этот API не принимает параметры URL");
         return action(request);
     } catch (const HttpError& error) {
         auto response = errorResponse(error.what(), error.status);
@@ -107,6 +130,11 @@ AuthService::Response AuthService::handle(const Request& request, const Action& 
         LOG_ERROR << "Account operation failed";
         return errorResponse("Сервис временно недоступен. Попробуйте позже", drogon::k503ServiceUnavailable);
     }
+}
+
+std::int64_t AuthService::currentUserId(const Request& request) {
+    const auto session = sessions_.find(request->getCookie(cookieName));
+    return session ? session->userId : 0;
 }
 
 Session AuthService::requireSession(const Request& request, bool authenticated) {
@@ -294,6 +322,88 @@ void AuthService::registerRoutes(drogon::HttpAppFramework& app) {
                 return jsonResponse(result, resale ? drogon::k201Created : drogon::k200OK);
             }));
         }, {drogon::Post});
+    }
+    // Отдельные операции установки и удаления, без серверного переключателя состояния.
+    for (const auto method : {drogon::Put, drogon::Delete}) {
+        app.registerHandler("/api/favorites/{1}", [this, method](const Request& request,
+            std::function<void(const Response&)>&& callback, const std::string& value) {
+            callback(handle(request, [this, method, &value](const Request& r) {
+                const auto session = requireSession(r, true);
+                checkCsrf(r, session); body(r, {});
+                const auto id = parseInteger(value, "id", 1, std::numeric_limits<std::int64_t>::max());
+                Database db(dbPath_);
+                db.setFavorite(session.userId, id, method == drogon::Put);
+                Json::Value result; result["listing_id"] = Json::Int64(id);
+                result["is_favorite"] = method == drogon::Put;
+                return jsonResponse(result);
+            }));
+        }, {method});
+    }
+    app.registerHandler("/api/listings/{1}/view", [this](const Request& request,
+        std::function<void(const Response&)>&& callback, const std::string& value) {
+        callback(handle(request, [this, &value](const Request& r) {
+            const auto session = requireSession(r, true);
+            checkCsrf(r, session); body(r, {});
+            const auto id = parseInteger(value, "id", 1, std::numeric_limits<std::int64_t>::max());
+            Database db(dbPath_);
+            Json::Value result; result["counted"] = db.recordView(session.userId, id);
+            return jsonResponse(result);
+        }));
+    }, {drogon::Post});
+    for (const bool views : {false, true}) {
+        app.registerHandler(views ? "/api/views" : "/api/favorites", [this, views](const Request& request,
+            std::function<void(const Response&)>&& callback) {
+            callback(handle(request, [this, views](const Request& r) {
+                const auto session = requireSession(r, true);
+                const auto params = integerParameters(r, {{"page", 1000000}, {"page_size", 100}});
+                const auto page = params.count("page") ? params.at("page") : 1;
+                const auto size = params.count("page_size") ? params.at("page_size") : 24;
+                Database db(dbPath_);
+                const auto data = db.personalPage(session.userId, views, page, size);
+                Json::Value result; result["items"] = Json::Value(Json::arrayValue);
+                for (const auto& entry : data.items) {
+                    auto item = listingToJson(entry.listing);
+                    if (views) {
+                        item["last_viewed_at"] = Json::Int64(entry.lastViewedAt);
+                        item["view_count"] = Json::Int64(entry.viewCount);
+                    } else item["saved_at"] = entry.savedAt;
+                    result["items"].append(item);
+                }
+                result["total"] = Json::Int64(data.total);
+                result["count"] = Json::UInt64(data.items.size());
+                result["page"] = Json::Int64(page); result["page_size"] = Json::Int64(size);
+                result["total_pages"] = Json::Int64((data.total + size - 1) / size);
+                return jsonResponse(result);
+            }, true));
+        }, {drogon::Get});
+    }
+    app.registerHandler("/api/recommendations", [this](const Request& request,
+        std::function<void(const Response&)>&& callback) {
+        callback(handle(request, [this](const Request& r) {
+            const auto params = integerParameters(r, {{"limit", 24}});
+            const int limit = params.count("limit") ? static_cast<int>(params.at("limit")) : 6;
+            Database db(dbPath_);
+            Json::Value result; result["items"] = Json::Value(Json::arrayValue);
+            bool personalized = false;
+            for (const auto& entry : db.recommendations(currentUserId(r), limit)) {
+                auto item = listingToJson(entry.listing);
+                item["score"] = entry.score; item["reason"] = entry.reason;
+                personalized |= entry.score > 0;
+                result["items"].append(item);
+            }
+            result["personalized"] = personalized;
+            result["count"] = result["items"].size();
+            return jsonResponse(result);
+        }, true));
+    }, {drogon::Get});
+    for (const auto& path : {"/favorites", "/view-history", "/personal.html"}) {
+        app.registerHandler(path, [this, path = std::string(path)](const Request& request,
+            std::function<void(const Response&)>&& callback) {
+            const auto target = path == "/view-history" ? "/view-history" : "/favorites";
+            auto response = currentUserId(request) ? drogon::HttpResponse::newFileResponse(publicPath_ + "/personal.html") :
+                drogon::HttpResponse::newRedirectionResponse("/login?next=" + drogon::utils::urlEncode(target));
+            response->addHeader("Cache-Control", "no-store"); callback(response);
+        }, {drogon::Get});
     }
     for (const auto& path : {"/login", "/register", "/my-bookings", "/bookings.html"}) {
         app.registerHandler(path, [this, path = std::string(path)](const Request& request,

@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         db.execute("UPDATE properties SET description = 'User change' WHERE id = 1");
         db.execute("UPDATE listings SET price = 123456 WHERE id = 1");
         db.migrate(argv[1]);
-        check(db.scalar("PRAGMA user_version") == 4 && db.listing(1)->description == "User change" &&
+        check(db.scalar("PRAGMA user_version") == 5 && db.listing(1)->description == "User change" &&
               db.listing(1)->price == 123456 && db.listing(1)->photos.size() == 3, "Migration lost old data");
         const auto first = db.createUser("Первый", "first@example.com", "test-only hash");
         const auto second = db.createUser("Второй", "second@example.com", "test-only hash");

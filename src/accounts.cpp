@@ -31,7 +31,7 @@ std::int64_t Database::createUser(const std::string& name, const std::string& em
     return sqlite3_last_insert_rowid(db_);
 }
 
-// Общий механизм для трёх операций записи. Повторяется вся операция, не её кусок.
+// Общий механизм для пользовательских операций записи. Повторяется вся операция, не её кусок.
 std::int64_t Database::writeTransaction(const std::function<std::int64_t()>& operation) {
     sqlite3_busy_timeout(db_, 250);
     for (int attempt = 0; attempt < 4; ++attempt) {

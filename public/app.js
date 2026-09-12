@@ -1,5 +1,4 @@
 const grid = document.querySelector('#listings');
-const template = document.querySelector('#listing-template');
 const message = document.querySelector('#message');
 const count = document.querySelector('#catalog-count');
 const retry = document.querySelector('#retry');
@@ -35,23 +34,7 @@ function navigate(url) {
   restoreForm();
   loadListings();
 }
-function renderListing(item) {
-  const card = template.content.cloneNode(true);
-  showPhoto(card.querySelector('img'), item.photos[0]);
-  const href = `/listings/${item.id}?return_to=${encodeURIComponent(`/${location.search}#catalog`)}`;
-  card.querySelector('.cover-link').href = href;
-  const link = card.querySelector('.listing-link');
-  link.href = href;
-  link.textContent = listingTitle(item);
-  card.querySelector('.deal-badge').textContent = item.deal_type === 'rent' ? 'В аренду' : 'На продажу';
-  card.querySelector('.photo-count').textContent = item.photos.length ? `${item.photos.length} фото` : 'Нет фото';
-  card.querySelector('.district').textContent = item.district;
-  card.querySelector('.address').textContent = item.address;
-  card.querySelector('.features').textContent = `${item.rooms} комн.  ·  ${numberFormat.format(item.area)} м²  ·  ${item.kind === 'house' ? 'Отдельный дом' : `${item.floor} этаж`}`;
-  card.querySelector('.description').textContent = item.description;
-  showPrice(card.querySelector('.price'), item);
-  return card;
-}
+function renderListing(item) { return listingCard(item, `/${location.search}#catalog`); }
 function renderPagination(data) {
   pagination.hidden = data.total_pages <= 1 || data.count === 0;
   const previous = document.querySelector('#previous-page');
@@ -83,6 +66,7 @@ function renderPagination(data) {
   document.querySelector('#page-summary').textContent = `Страница ${data.page} из ${data.total_pages} · по ${data.page_size} объявлений`;
 }
 async function loadListings() {
+  await authReady;
   currentRequest?.abort();
   const controller = new AbortController();
   currentRequest = controller;

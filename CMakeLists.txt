@@ -12,7 +12,7 @@ find_package(Drogon CONFIG REQUIRED)
 find_path(SODIUM_INCLUDE_DIR sodium.h REQUIRED)
 find_library(SODIUM_LIBRARY sodium REQUIRED)
 
-add_library(apartment_db src/database.cpp src/seed.cpp src/accounts.cpp)
+add_library(apartment_db src/database.cpp src/seed.cpp src/accounts.cpp src/personalization.cpp)
 target_include_directories(apartment_db PUBLIC src)
 if(TARGET SQLite3::SQLite3)
     target_link_libraries(apartment_db PUBLIC SQLite3::SQLite3)
@@ -43,6 +43,9 @@ if(BUILD_TESTING)
     add_executable(booking_tests tests/booking_tests.cpp)
     target_link_libraries(booking_tests PRIVATE apartment_db)
     add_test(NAME booking_database COMMAND booking_tests ${PROJECT_SOURCE_DIR}/sql/001_initial.sql)
+    add_executable(personalization_tests tests/personalization_tests.cpp)
+    target_link_libraries(personalization_tests PRIVATE apartment_db)
+    add_test(NAME personalization_database COMMAND personalization_tests ${PROJECT_SOURCE_DIR}/sql/001_initial.sql)
 
     # Python используется только для проверки HTTP, не для бизнес-логики.
     find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
@@ -55,5 +58,8 @@ if(BUILD_TESTING)
     add_test(NAME lifecycle_http COMMAND ${Python3_EXECUTABLE}
         ${PROJECT_SOURCE_DIR}/tests/lifecycle_http.py
         $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR})
-    set_tests_properties(http_smoke auth_http lifecycle_http PROPERTIES TIMEOUT 90)
+    add_test(NAME personalization_http COMMAND ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/tests/personalization_http.py
+        $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR})
+    set_tests_properties(http_smoke auth_http lifecycle_http personalization_http PROPERTIES TIMEOUT 90)
 endif()

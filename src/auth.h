@@ -10,11 +10,12 @@ public:
     AuthService(std::string dbPath, std::string publicPath, int port,
                 bool secureCookies, const std::string& origin);
     void registerRoutes(drogon::HttpAppFramework& app);
+    std::int64_t currentUserId(const drogon::HttpRequestPtr& request);
 private:
     using Response = drogon::HttpResponsePtr;
     using Request = drogon::HttpRequestPtr;
     using Action = std::function<Response(const Request&)>;
-    Response handle(const Request& request, const Action& action);
+    Response handle(const Request& request, const Action& action, bool allowQuery = false);
     Session requireSession(const Request& request, bool authenticated);
     void checkCsrf(const Request& request, const Session& session);
     void setCookie(const Response& response, const std::string& id, bool expired = false);

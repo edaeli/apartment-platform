@@ -9,10 +9,11 @@ const Auth = {
     renderAccount(result.user);
     return result;
   },
-  async post(path, data = {}) {
+  async post(path, data = {}) { return this.mutate(path, 'POST', data); },
+  async mutate(path, method, data = {}) {
     if (!this.state) await this.load();
     const response = await fetch(path, {
-      method: 'POST',
+      method,
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.state.csrf_token },
       body: JSON.stringify(data)
     });
@@ -54,6 +55,8 @@ function renderAccount(user) {
     name.title = user.email;
     nav.append(name);
     link('Мои бронирования', '/my-bookings');
+    link('Избранное', '/favorites');
+    link('История просмотров', '/view-history');
     const logout = document.createElement('button');
     logout.type = 'button';
     logout.className = 'text-button';
@@ -63,7 +66,7 @@ function renderAccount(user) {
       try {
         await Auth.post('/api/auth/logout');
         Auth.state = null;
-        location.replace(location.pathname === '/my-bookings' || location.pathname === '/bookings.html' ? '/' : location.href);
+        location.replace(['/my-bookings', '/bookings.html', '/favorites', '/view-history', '/personal.html'].includes(location.pathname) ? '/' : location.href);
       } catch (error) {
         logout.disabled = false;
         document.querySelector('#account-message').textContent = error.message;

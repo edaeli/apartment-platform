@@ -7,7 +7,7 @@ let next = '/';
 try {
   const target = new URL(new URLSearchParams(location.search).get('next') || '/', location.origin);
   if (target.origin === location.origin &&
-      (target.pathname === '/' || target.pathname === '/my-bookings' || /^\/listings\/\d+$/.test(target.pathname))) {
+      (['/', '/my-bookings', '/favorites', '/view-history'].includes(target.pathname) || /^\/listings\/\d+$/.test(target.pathname))) {
     next = target.pathname + target.search + target.hash;
   }
 } catch { /* Остаёмся в каталоге. */ }

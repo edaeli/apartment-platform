@@ -172,12 +172,13 @@ int main(int argc, char* argv[]) {
             }, {drogon::Get});
 
         app.registerHandler("/api/listings",
-            [dbPath](const drogon::HttpRequestPtr& request,
+            [dbPath, &auth](const drogon::HttpRequestPtr& request,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
                 try {
                     const auto filters = parseFilters(request);
                     Database db(dbPath);
-                    const auto page = db.listings(filters);
+                    auto page = db.listings(filters);
+                    db.markFavorites(page.items, auth.currentUserId(request));
                     const auto pages = (page.total + filters.pageSize - 1) / filters.pageSize;
                     Json::Value result;
                     result["items"] = Json::Value(Json::arrayValue);
@@ -201,7 +202,7 @@ int main(int argc, char* argv[]) {
             }, {drogon::Get});
 
         app.registerHandler("/api/listings/{1}",
-            [dbPath](const drogon::HttpRequestPtr&,
+            [dbPath, &auth](const drogon::HttpRequestPtr& request,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback,
                      const std::string& value) {
                 try {
@@ -212,7 +213,9 @@ int main(int argc, char* argv[]) {
                         callback(errorResponse("Объявление не найдено", drogon::k404NotFound));
                         return;
                     }
-                    callback(jsonResponse(listingToJson(*item)));
+                    std::vector<Listing> items{*item};
+                    db.markFavorites(items, auth.currentUserId(request));
+                    callback(jsonResponse(listingToJson(items.front())));
                 } catch (const std::invalid_argument& error) {
                     callback(errorResponse(error.what(), drogon::k400BadRequest));
                 } catch (const std::exception& error) {

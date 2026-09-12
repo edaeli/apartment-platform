@@ -58,6 +58,7 @@ struct Listing {
     std::vector<Photo> photos;
     std::optional<std::int64_t> sellerUserId, sourceBookingId;
     std::string createdAt;
+    bool isFavorite = false;
 };
 
 struct ListingFilters {
@@ -86,6 +87,21 @@ struct Booking {
     std::optional<std::int64_t> resaleListingId;
 };
 
+struct PersonalEntry {
+    Listing listing;
+    std::string savedAt;
+    std::int64_t lastViewedAt = 0, viewCount = 0;
+};
+struct PersonalPage {
+    std::vector<PersonalEntry> items;
+    std::int64_t total = 0;
+};
+struct Recommendation {
+    Listing listing;
+    int score = 0;
+    std::string reason;
+};
+
 // Одно соединение на операцию/HTTP-запрос. Соединение не делится между потоками.
 class Database {
 public:
@@ -108,6 +124,12 @@ public:
     std::int64_t resellBooking(std::int64_t userId, std::int64_t bookingId, std::int64_t price);
     static constexpr std::int64_t maxResalePrice = 1000000000000LL;
     std::vector<Booking> bookingsForUser(std::int64_t userId);
+    void setFavorite(std::int64_t userId, std::int64_t listingId, bool saved);
+    bool recordView(std::int64_t userId, std::int64_t listingId);
+    PersonalPage personalPage(std::int64_t userId, bool views, std::int64_t page, std::int64_t pageSize);
+    void markFavorites(std::vector<Listing>& items, std::int64_t userId);
+    std::vector<Listing> listingsByIds(const std::vector<std::int64_t>& ids);
+    std::vector<Recommendation> recommendations(std::int64_t userId, int limit);
     sqlite3* handle() const { return db_; }
 
 private:

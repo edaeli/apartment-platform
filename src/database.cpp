@@ -103,16 +103,17 @@ void Database::migrate(const std::string& schemaPath) {
     execute("BEGIN IMMEDIATE");
     try {
         const auto version = scalar("PRAGMA user_version");
-        if (version < 0 || version > 4) {
+        if (version < 0 || version > 5) {
             throw std::runtime_error("Unsupported database schema version");
         }
         const std::vector<std::string> migrations{
             schemaPath,
             (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string(),
             (std::filesystem::path(schemaPath).parent_path() / "003_users_bookings.sql").string(),
-            (std::filesystem::path(schemaPath).parent_path() / "004_resale_origin.sql").string()
+            (std::filesystem::path(schemaPath).parent_path() / "004_resale_origin.sql").string(),
+            (std::filesystem::path(schemaPath).parent_path() / "005_personalization.sql").string()
         };
-        for (auto next = version + 1; next <= 4; ++next) {
+        for (auto next = version + 1; next <= 5; ++next) {
             const auto& path = migrations.at(static_cast<std::size_t>(next - 1));
             std::ifstream file(path);
             if (!file) throw std::runtime_error("Cannot read schema: " + path);
@@ -241,6 +242,18 @@ std::optional<Listing> Database::listing(std::int64_t id) {
     auto result = readListings(query);
     if (result.empty()) return std::nullopt;
     return result.front();
+}
+
+std::vector<Listing> Database::listingsByIds(const std::vector<std::int64_t>& ids) {
+    if (ids.empty()) return {};
+    if (ids.size() > 100) throw std::invalid_argument("Слишком много объявлений");
+    std::string slots;
+    for (std::size_t i = 0; i < ids.size(); ++i) slots += i ? ",?" : "?";
+    Statement query(db_, "SELECT " + columns + ", ph.url, ph.caption" + tables +
+        " LEFT JOIN property_photos AS ph ON ph.property_id = p.id WHERE l.id IN (" + slots +
+        ") ORDER BY l.id, ph.sort_order");
+    for (std::size_t i = 0; i < ids.size(); ++i) query.bind(static_cast<int>(i + 1), ids[i]);
+    return readListings(query);
 }
 
 std::vector<std::string> Database::districts() {

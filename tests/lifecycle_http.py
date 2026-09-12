@@ -144,7 +144,7 @@ with tempfile.TemporaryDirectory(prefix="apartment-lifecycle-") as temporary:
     with (Path(temporary) / "server.log").open("w+") as log:
         try:
             start()
-            check(rows("PRAGMA user_version") == [(4,)], "Migration 4 not applied")
+            check(rows("PRAGMA user_version") == [(5,)], "Current migrations not applied")
             for t in tables:
                 current = {row[0]: row for row in rows(f"SELECT {old_columns[t]} FROM {t}")}
                 check(all(current[row[0]] == row for row in old[t]), "Migration/seed lost old " + t)

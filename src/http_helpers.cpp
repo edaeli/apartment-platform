@@ -34,6 +34,7 @@ Json::Value listingToJson(const Listing& item) {
     json["id"] = Json::Int64(item.id);
     json["property_id"] = Json::Int64(item.propertyId);
     json["price"] = Json::Int64(item.price);
+    json["is_favorite"] = item.isFavorite;
     json["seller_user_id"] = item.sellerUserId ? Json::Value(Json::Int64(*item.sellerUserId)) : Json::Value(Json::nullValue);
     json["source_booking_id"] = item.sourceBookingId ? Json::Value(Json::Int64(*item.sourceBookingId)) : Json::Value(Json::nullValue);
     json["created_at"] = item.createdAt;

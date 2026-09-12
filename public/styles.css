@@ -214,3 +214,13 @@ button:disabled { opacity: .55; cursor: wait; }
 .booking-form label { display: grid; gap: 8px; }
 .booking-form input { max-width: 100%; padding: 12px; border: 1px solid #b8c4b4; border-radius: 5px; }
 .booking-form button { white-space: normal; }
+
+.favorite-control { margin-top: 16px; }
+.favorite-button { border: 1px solid #a1b298; border-radius: 5px; padding: 10px 12px; background: #f7f8f2; color: #294736; font: inherit; cursor: pointer; text-align: left; }
+.favorite-button[aria-pressed="true"] { background: #e0ead9; }
+.favorite-control .form-message:empty { display: none; }
+.recommendations { margin: 56px 0; }
+.recommendations h2 { font-size: clamp(26px, 4vw, 36px); }
+.recommendation-reason { font-size: 14px; color: #435d36; margin-top: 12px; }
+.availability[data-status="closed"], .availability[data-status="reserved"] { color: #865d33; }
+#personal-pagination { margin-top: 28px; }
