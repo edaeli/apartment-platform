@@ -52,5 +52,8 @@ if(BUILD_TESTING)
     add_test(NAME auth_http COMMAND ${Python3_EXECUTABLE}
         ${PROJECT_SOURCE_DIR}/tests/auth_http.py
         $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR})
-    set_tests_properties(http_smoke auth_http PROPERTIES TIMEOUT 60)
+    add_test(NAME lifecycle_http COMMAND ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/tests/lifecycle_http.py
+        $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR})
+    set_tests_properties(http_smoke auth_http lifecycle_http PROPERTIES TIMEOUT 90)
 endif()

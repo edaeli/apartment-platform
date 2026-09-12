@@ -103,15 +103,16 @@ void Database::migrate(const std::string& schemaPath) {
     execute("BEGIN IMMEDIATE");
     try {
         const auto version = scalar("PRAGMA user_version");
-        if (version < 0 || version > 3) {
+        if (version < 0 || version > 4) {
             throw std::runtime_error("Unsupported database schema version");
         }
         const std::vector<std::string> migrations{
             schemaPath,
             (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string(),
-            (std::filesystem::path(schemaPath).parent_path() / "003_users_bookings.sql").string()
+            (std::filesystem::path(schemaPath).parent_path() / "003_users_bookings.sql").string(),
+            (std::filesystem::path(schemaPath).parent_path() / "004_resale_origin.sql").string()
         };
-        for (auto next = version + 1; next <= 3; ++next) {
+        for (auto next = version + 1; next <= 4; ++next) {
             const auto& path = migrations.at(static_cast<std::size_t>(next - 1));
             std::ifstream file(path);
             if (!file) throw std::runtime_error("Cannot read schema: " + path);
@@ -154,7 +155,8 @@ int bindFilters(Statement& query, const ListingFilters& filters) {
 const std::string columns = R"SQL(
     l.id, l.property_id, l.price, l.deal_type, l.status,
     p.kind, p.address, p.district, p.description, p.area,
-    p.latitude, p.longitude, p.rooms, p.floor
+    p.latitude, p.longitude, p.rooms, p.floor,
+    l.seller_user_id, l.source_booking_id, l.created_at
 )SQL";
 const std::string tables = " FROM listings AS l JOIN properties AS p ON p.id = l.property_id";
 
@@ -177,9 +179,12 @@ std::vector<Listing> readListings(Statement& query) {
             item.longitude = query.real(11);
             item.rooms = static_cast<int>(query.integer(12));
             item.floor = static_cast<int>(query.integer(13));
+            if (!query.isNull(14)) item.sellerUserId = query.integer(14);
+            if (!query.isNull(15)) item.sourceBookingId = query.integer(15);
+            item.createdAt = query.text(16);
             result.push_back(item);
         }
-        if (!query.isNull(14)) result.back().photos.push_back({query.text(14), query.text(15)});
+        if (!query.isNull(17)) result.back().photos.push_back({query.text(17), query.text(18)});
     }
     return result;
 }

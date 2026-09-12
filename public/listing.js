@@ -12,6 +12,8 @@ try {
 } catch { /* Некорректный return_to оставляет обычную ссылку на каталог. */ }
 
 let currentListing;
+let bookingPending = false;
+let detailRequest = 0;
 function renderDetail(item) {
   currentListing = item;
   renderBookingAction();
@@ -61,6 +63,8 @@ function renderDetail(item) {
 
 async function loadDetail() {
   await authReady;
+  if (bookingPending) return;
+  const request = ++detailRequest;
   detail.hidden = detailRetry.hidden = true;
   detailMessage.hidden = false;
   detailMessage.textContent = 'Загружаем объявление…';
@@ -68,6 +72,7 @@ async function loadDetail() {
   try {
     const response = await fetch(`/api/listings/${encodeURIComponent(id)}`);
     const item = await response.json();
+    if (request !== detailRequest) return;
     if (!response.ok) {
       detailMessage.textContent = response.status === 404
         ? 'Объявление не найдено. Проверьте адрес или вернитесь в каталог.'
@@ -79,10 +84,11 @@ async function loadDetail() {
     detail.hidden = false;
     detailMessage.hidden = true;
   } catch {
+    if (request !== detailRequest) return;
     detailMessage.textContent = 'Не удалось связаться с сервером. Попробуйте снова.';
     detailRetry.hidden = false;
   } finally {
-    detail.setAttribute('aria-busy', 'false');
+    if (request === detailRequest) detail.setAttribute('aria-busy', 'false');
   }
 }
 detailRetry.addEventListener('click', loadDetail);
@@ -95,12 +101,16 @@ function renderBookingAction() {
   const login = document.querySelector('#book-login');
   login.href = loginAddress();
   login.hidden = !Auth.state || !!Auth.state.user || currentListing.status !== 'available';
-  button.hidden = !Auth.state?.user || currentListing.status !== 'available';
+  const own = !!Auth.state?.user && currentListing.seller_user_id === Auth.state.user.id;
+  document.querySelector('#own-listing-note').hidden = !own;
+  button.hidden = !Auth.state?.user || currentListing.status !== 'available' || own;
   button.textContent = currentListing.deal_type === 'rent' ? 'Арендовать' : 'Купить';
-  button.disabled = false;
+  button.disabled = bookingPending;
 }
 bookButton.addEventListener('click', async () => {
-  if (bookButton.disabled) return;
+  if (bookingPending) return;
+  bookingPending = true;
+  ++detailRequest; // Старое чтение не должно перекрыть результат нового действия.
   bookButton.disabled = true;
   bookingMessage.textContent = 'Создаём бронирование…';
   try {
@@ -111,9 +121,14 @@ bookButton.addEventListener('click', async () => {
     document.querySelector('#booking-account').hidden = false;
   } catch (error) {
     bookingMessage.textContent = error.message;
-    if (error.status === 409) await loadDetail();
     if (error.status === 401 || error.status === 403) {
       try { await Auth.load(); renderBookingAction(); } catch { /* Сообщение исходной ошибки остаётся. */ }
     }
-  } finally { bookButton.disabled = false; }
+  } finally {
+    bookingPending = false;
+    renderBookingAction();
+    await loadDetail();
+  }
 });
+
+window.addEventListener('focus', loadDetail);

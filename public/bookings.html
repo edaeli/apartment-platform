@@ -22,7 +22,17 @@
     <p class="form-note">Здесь указана цена на момент бронирования. Оплата и реальные сделки не производятся.</p>
     <div id="bookings-message" class="message" role="status">Загружаем ваши бронирования…</div>
     <button id="bookings-retry" class="retry" type="button" hidden>Попробовать снова</button>
-    <div id="bookings-list" class="bookings-list" aria-busy="true"></div>
+    <p id="booking-feedback" class="form-message" role="status"></p>
+    <div id="bookings-list" aria-busy="true" hidden>
+      <section aria-labelledby="active-title"><h2 id="active-title">Активные бронирования</h2>
+        <p id="active-empty" class="form-note" hidden>Активных бронирований нет.</p>
+        <div id="active-bookings" class="bookings-list"></div>
+      </section>
+      <section aria-labelledby="history-title"><h2 id="history-title">История</h2>
+        <p id="history-empty" class="form-note" hidden>Завершённых бронирований пока нет.</p>
+        <div id="history-bookings" class="bookings-list"></div>
+      </section>
+    </div>
     <noscript><p class="message">Для просмотра бронирований требуется JavaScript.</p></noscript>
   </main>
 </body>

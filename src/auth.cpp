@@ -19,7 +19,7 @@ std::string trim(const std::string& text) {
     return text.substr(first, text.find_last_not_of(" \t\r\n") - first + 1);
 }
 
-Json::Value body(const drogon::HttpRequestPtr& request, const std::set<std::string>& fields) {
+Json::Value body(const drogon::HttpRequestPtr& request, const std::set<std::string>& fields, bool stringsOnly = true) {
     const auto contentType = request->getHeader("content-type");
     const auto json = request->getJsonObject();
     if (contentType.substr(0, contentType.find(';')) != "application/json" || !json || !json->isObject()) {
@@ -27,11 +27,28 @@ Json::Value body(const drogon::HttpRequestPtr& request, const std::set<std::stri
     }
     if (json->size() != fields.size()) throw std::invalid_argument("Неверный набор полей запроса");
     for (const auto& name : json->getMemberNames()) {
-        if (!fields.count(name) || !(*json)[name].isString()) {
+        if (!fields.count(name) || (stringsOnly && !(*json)[name].isString())) {
             throw std::invalid_argument("Неверные поля запроса: ожидаются строки");
         }
     }
     return *json;
+}
+
+std::int64_t resalePrice(const drogon::HttpRequestPtr& request) {
+    const auto value = body(request, {"price"}, false)["price"];
+    if (value.isString()) {
+        const auto text = value.asString();
+        if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos) {
+            throw std::invalid_argument("Цена должна состоять из цифр без пробелов, дробной части и знака");
+        }
+        return parseInteger(text, "price", 1, Database::maxResalePrice);
+    }
+    // JsonCpp отличает целую запись от realValue: 1.5, 1.0 и 1e3 не принимаются.
+    if ((value.type() != Json::intValue && value.type() != Json::uintValue) ||
+        !value.isInt64() || value.asInt64() < 1 || value.asInt64() > Database::maxResalePrice) {
+        throw std::invalid_argument("Цена должна быть целым числом от 1 до 1000000000000 драмов");
+    }
+    return value.asInt64();
 }
 
 Json::Value userJson(const User& user) {
@@ -73,6 +90,7 @@ AuthService::Response AuthService::handle(const Request& request, const Action& 
         return response;
     } catch (const BookingError& error) {
         const auto status = error.reason == BookingFailure::notFound ? drogon::k404NotFound :
+            error.reason == BookingFailure::forbidden ? drogon::k403Forbidden :
             error.reason == BookingFailure::conflict ? drogon::k409Conflict : drogon::k503ServiceUnavailable;
         auto response = errorResponse(error.what(), status);
         if (status == drogon::k503ServiceUnavailable) response->addHeader("Retry-After", "2");
@@ -229,6 +247,7 @@ void AuthService::registerRoutes(drogon::HttpAppFramework& app) {
             json["created_at"] = item.createdAt;
             json["ended_at"] = item.endedAt.empty() ? Json::Value(Json::nullValue) : Json::Value(item.endedAt);
             json["listing"] = listingToJson(item.listing);
+            json["resale_listing_id"] = item.resaleListingId ? Json::Value(Json::Int64(*item.resaleListingId)) : Json::Value(Json::nullValue);
             result["items"].append(json);
         }
         return jsonResponse(result);
@@ -250,6 +269,32 @@ void AuthService::registerRoutes(drogon::HttpAppFramework& app) {
             return jsonResponse(result, drogon::k201Created);
         }));
     }, {drogon::Post});
+    for (const bool resale : {false, true}) {
+        const std::string path = resale ? "/api/bookings/{1}/resell" : "/api/bookings/{1}/release";
+        app.registerHandler(path, [this, resale](const Request& request,
+            std::function<void(const Response&)>&& callback, const std::string& value) {
+            callback(handle(request, [this, resale, &value](const Request& r) {
+                const auto session = requireSession(r, true);
+                checkCsrf(r, session);
+                const auto id = parseInteger(value, "id", 1, std::numeric_limits<std::int64_t>::max());
+                const auto price = resale ? resalePrice(r) : 0;
+                if (!resale) body(r, {});
+                Database db(dbPath_);
+                Json::Value result;
+                result["booking_id"] = Json::Int64(id);
+                if (resale) {
+                    result["listing_id"] = Json::Int64(db.resellBooking(session.userId, id, price));
+                    result["status"] = "resold";
+                    result["message"] = "Новое объявление опубликовано в учебном каталоге. Оплата не производится";
+                } else {
+                    db.releaseBooking(session.userId, id);
+                    result["status"] = "released";
+                    result["message"] = "Бронирование завершено. Жильё снова доступно";
+                }
+                return jsonResponse(result, resale ? drogon::k201Created : drogon::k200OK);
+            }));
+        }, {drogon::Post});
+    }
     for (const auto& path : {"/login", "/register", "/my-bookings", "/bookings.html"}) {
         app.registerHandler(path, [this, path = std::string(path)](const Request& request,
             std::function<void(const Response&)>&& callback) {

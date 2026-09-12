@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -14,7 +15,7 @@ public:
     int code;
 };
 
-enum class BookingFailure { notFound, conflict, busy };
+enum class BookingFailure { notFound, forbidden, conflict, busy };
 class BookingError : public std::runtime_error {
 public:
     BookingError(BookingFailure reason, const std::string& message)
@@ -55,6 +56,8 @@ struct Listing {
     double area, latitude, longitude;
     int rooms, floor;
     std::vector<Photo> photos;
+    std::optional<std::int64_t> sellerUserId, sourceBookingId;
+    std::string createdAt;
 };
 
 struct ListingFilters {
@@ -80,6 +83,7 @@ struct Booking {
     std::int64_t id, userId, listingId, propertyId, price;
     std::string dealType, status, createdAt, endedAt;
     Listing listing;
+    std::optional<std::int64_t> resaleListingId;
 };
 
 // Одно соединение на операцию/HTTP-запрос. Соединение не делится между потоками.
@@ -100,10 +104,16 @@ public:
     std::optional<User> userById(std::int64_t id);
     std::int64_t createUser(const std::string& name, const std::string& email, const std::string& hash);
     std::int64_t book(std::int64_t userId, std::int64_t listingId);
+    void releaseBooking(std::int64_t userId, std::int64_t bookingId);
+    std::int64_t resellBooking(std::int64_t userId, std::int64_t bookingId, std::int64_t price);
+    static constexpr std::int64_t maxResalePrice = 1000000000000LL;
     std::vector<Booking> bookingsForUser(std::int64_t userId);
     sqlite3* handle() const { return db_; }
 
 private:
+    std::int64_t writeTransaction(const std::function<std::int64_t()>& operation);
+    std::int64_t finishBooking(std::int64_t userId, std::int64_t bookingId,
+                               std::optional<std::int64_t> resalePrice);
     sqlite3* db_ = nullptr;
 };
 

@@ -206,3 +206,11 @@ button:disabled { opacity: .55; cursor: wait; }
   .auth-panel { padding: 22px 18px; }
   .booking-card { grid-template-columns: 1fr; padding: 16px; gap: 18px; }
 }
+
+.booking-controls { margin-top: 20px; }
+.booking-card h3 { font-size: 23px; }
+.booking-form { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; padding: 18px; background: #eef1e9; border-radius: 8px; }
+.booking-form p, .booking-form label { width: 100%; margin: 0; }
+.booking-form label { display: grid; gap: 8px; }
+.booking-form input { max-width: 100%; padding: 12px; border: 1px solid #b8c4b4; border-radius: 5px; }
+.booking-form button { white-space: normal; }
