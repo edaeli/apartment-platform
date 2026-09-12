@@ -115,7 +115,7 @@ input:focus-visible, select:focus-visible { outline: 3px solid #ba812f; outline-
 .filters { display: grid; grid-template-columns: 1.2fr 1fr 1fr .8fr 1.5fr; gap: 14px; padding: 20px; margin-bottom: 25px; background: #eef1e9; border-radius: 9px; }
 .filters label { display: flex; flex-direction: column; gap: 8px; font-size: 12px; min-width: 0; }
 .filters input, .filters select { width: 100%; min-height: 43px; padding: 10px; color: var(--ink); border: 1px solid #d5dccd; border-radius: 5px; background: white; }
-.filter-actions { grid-column: 1 / -1; display: flex; gap: 12px; }
+.filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; }
 .action-button, .reset-button { padding: 12px 25px; border-radius: 5px; border: 1px solid var(--green); }
 .action-button { color: white; background: var(--green); }
 .reset-button { color: var(--green); background: transparent; }
@@ -224,3 +224,8 @@ button:disabled { opacity: .55; cursor: wait; }
 .recommendation-reason { font-size: 14px; color: #435d36; margin-top: 12px; }
 .availability[data-status="closed"], .availability[data-status="reserved"] { color: #865d33; }
 #personal-pagination { margin-top: 28px; }
+
+/* Длинные адреса, цены и подписи не расширяют колонки на узком экране. */
+.detail-grid > *, .booking-card > *, .hero > * { min-width: 0; }
+.card-content, .detail-heading, .detail-info, .booking-card, .auth-panel { overflow-wrap: anywhere; }
+.action-button, .reset-button, .favorite-button, .primary-link { max-width: 100%; overflow-wrap: anywhere; }

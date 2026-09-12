@@ -6,6 +6,7 @@ async function loadRecommendations() {
   await authReady;
   recommendationsRequest?.abort();
   const controller = new AbortController(); recommendationsRequest = controller;
+  const revision = favoriteRevision;
   recommendationsList.setAttribute('aria-busy', 'true'); recommendationsRetry.hidden = true;
   recommendationsMessage.textContent = 'Загружаем подборку…';
   try {
@@ -13,6 +14,7 @@ async function loadRecommendations() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Не удалось загрузить подборку.');
     if (controller.signal.aborted) return;
+    syncFavorites(data.items, revision);
     recommendationsList.replaceChildren(...data.items.map(item => listingCard(item)));
     document.querySelector('#recommendations-note').textContent = data.personalized
       ? 'По районам и ценам вашего избранного и просмотров. Аренда и продажа учитываются отдельно.'

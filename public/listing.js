@@ -15,10 +15,15 @@ let currentListing;
 let bookingPending = false;
 let detailRequest = 0;
 let viewSent = false;
+let selectedPhotoUrl;
 function renderDetail(item) {
   currentListing = item;
   renderBookingAction();
-  document.querySelector('#detail-favorite').replaceChildren(favoriteControl(item));
+  // Ответ чтения мог прийти, пока пользователь уже нажал кнопку избранного.
+  // Сохраняем саму кнопку и её сообщение до завершения действия.
+  if (!favoritePending.has(item.id)) {
+    document.querySelector('#detail-favorite').replaceChildren(favoriteControl(item));
+  }
   document.title = `${listingTitle(item)} — Свой адрес`;
   document.querySelector('#detail-title').textContent = listingTitle(item);
   document.querySelector('#detail-address').textContent = item.address;
@@ -43,7 +48,8 @@ function renderDetail(item) {
     characteristics.append(term, definition);
   }
   const mainPhoto = document.querySelector('#main-photo');
-  showPhoto(mainPhoto, item.photos[0]);
+  const selectedIndex = Math.max(0, item.photos.findIndex(photo => photo.url === selectedPhotoUrl));
+  showPhoto(mainPhoto, item.photos[selectedIndex]);
   const thumbnails = document.querySelector('#thumbnails');
   thumbnails.replaceChildren();
   item.photos.forEach((photo, index) => {
@@ -51,11 +57,12 @@ function renderDetail(item) {
     button.type = 'button';
     button.className = 'thumbnail';
     button.setAttribute('aria-label', `Показать фото ${index + 1}: ${photo.caption}`);
-    button.setAttribute('aria-pressed', String(index === 0));
+    button.setAttribute('aria-pressed', String(index === selectedIndex));
     const image = document.createElement('img');
     showPhoto(image, photo);
     button.append(image);
     button.addEventListener('click', () => {
+      selectedPhotoUrl = photo.url;
       showPhoto(mainPhoto, photo);
       [...thumbnails.children].forEach(child => child.setAttribute('aria-pressed', String(child === button)));
     });
@@ -65,8 +72,9 @@ function renderDetail(item) {
 
 async function loadDetail() {
   await authReady;
-  if (bookingPending) return;
+  if (bookingPending || favoritePending.has(Number(id))) return;
   const request = ++detailRequest;
+  const revision = favoriteRevision;
   detail.hidden = detailRetry.hidden = true;
   detailMessage.hidden = false;
   detailMessage.textContent = 'Загружаем объявление…';
@@ -82,6 +90,7 @@ async function loadDetail() {
       detailRetry.hidden = response.status < 500;
       return;
     }
+    syncFavorites([item], revision);
     renderDetail(item);
     if (!viewSent && Auth.state?.user) {
       viewSent = true;

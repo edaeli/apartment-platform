@@ -24,6 +24,7 @@ async function loadPersonal() {
   }
   if (!Auth.state?.user) { location.replace(loginAddress()); return; }
   personalRequest?.abort(); const controller = new AbortController(); personalRequest = controller;
+  const revision = favoriteRevision;
   personalList.replaceChildren(); personalList.setAttribute('aria-busy', 'true');
   personalPagination.hidden = personalRetry.hidden = true; personalMessage.textContent = 'Загружаем объявления…';
   try {
@@ -36,8 +37,8 @@ async function loadPersonal() {
     if (data.total_pages && data.page > data.total_pages) {
       history.replaceState(null, '', personalUrl(data.total_pages)); loadPersonal(); return;
     }
+    syncFavorites(data.items, revision);
     for (const item of data.items) {
-      favoriteStates.set(item.id, item.is_favorite);
       const card = listingCard(item);
       const note = document.createElement('p'); note.className = 'form-note';
       note.textContent = viewsPage

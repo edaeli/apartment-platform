@@ -28,6 +28,17 @@ function listingCard(item, returnTo = '/#catalog') {
 // На сервер отправляется явное PUT или DELETE, никогда не toggle.
 const favoriteStates = new Map();
 const favoritePending = new Set();
+let favoriteRevision = 0;
+// Чтение, начатое до изменения избранного, не должно отменять результат кнопки.
+function syncFavorites(items, revision) {
+  if (revision !== favoriteRevision) return;
+  for (const item of items) {
+    if (!favoritePending.has(item.id)) {
+      favoriteStates.set(item.id, item.is_favorite);
+      updateFavoriteButtons(item.id);
+    }
+  }
+}
 function updateFavoriteButtons(id) {
   document.querySelectorAll(`[data-favorite-id="${id}"]`).forEach(button => {
     const saved = favoriteStates.get(id);
@@ -53,6 +64,7 @@ function favoriteControl(item) {
   button.addEventListener('click', async () => {
     if (favoritePending.has(item.id)) return;
     const desired = !favoriteStates.get(item.id);
+    ++favoriteRevision;
     favoritePending.add(item.id); updateFavoriteButtons(item.id); message.textContent = '';
     try {
       const result = await Auth.mutate(`/api/favorites/${item.id}`, desired ? 'PUT' : 'DELETE');
@@ -64,7 +76,7 @@ function favoriteControl(item) {
         const link = document.createElement('a'); link.className = 'inline-link';
         link.href = loginAddress(); link.textContent = ' Войти'; message.append(link);
       }
-    } finally { favoritePending.delete(item.id); updateFavoriteButtons(item.id); }
+    } finally { ++favoriteRevision; favoritePending.delete(item.id); updateFavoriteButtons(item.id); }
   });
   container.append(button, message);
   return container;

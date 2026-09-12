@@ -22,6 +22,8 @@
     <a class="back-link" id="back-to-catalog" href="/#catalog">← Вернуться в каталог</a>
     <div class="message" id="detail-message" role="status">Загружаем объявление…</div>
     <button id="detail-retry" class="retry" type="button" hidden>Попробовать снова</button>
+    <p id="booking-message" class="form-message" role="status"></p>
+    <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
     <article id="listing-detail" hidden>
       <div class="detail-heading"><div><p class="eyebrow" id="detail-district"></p><h1 id="detail-title"></h1><p id="detail-address"></p></div><span id="detail-status" class="status-label"></span></div>
       <div class="detail-grid">
@@ -41,8 +43,6 @@
             <p class="form-note">Действие создаёт бронирование внутри учебного сайта. Без оплаты и без реальной сделки.</p>
             <button id="book-button" class="action-button" type="button" hidden></button>
             <a id="book-login" class="primary-link" href="/login" hidden>Войти для бронирования</a>
-            <p id="booking-message" class="form-message" role="status"></p>
-            <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
           </div>
           <p class="location-note">Местоположение указано по адресу и району. Точная точка на карте не публикуется: данные учебные.</p>
         </section>

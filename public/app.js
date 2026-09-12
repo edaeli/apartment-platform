@@ -70,6 +70,7 @@ async function loadListings() {
   currentRequest?.abort();
   const controller = new AbortController();
   currentRequest = controller;
+  const revision = favoriteRevision;
   grid.setAttribute('aria-busy', 'true');
   grid.replaceChildren();
   pagination.hidden = firstPage.hidden = retry.hidden = true;
@@ -88,6 +89,7 @@ async function loadListings() {
     if (selected && !data.districts.includes(selected)) district.add(new Option(selected, selected));
     district.value = selected;
     const fragment = document.createDocumentFragment();
+    syncFavorites(data.items, revision);
     data.items.forEach(item => fragment.append(renderListing(item)));
     grid.replaceChildren(fragment);
     count.textContent = `Найдено объявлений: ${numberFormat.format(data.total)}`;
