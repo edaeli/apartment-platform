@@ -11,7 +11,10 @@ try {
   }
 } catch { /* Некорректный return_to оставляет обычную ссылку на каталог. */ }
 
+let currentListing;
 function renderDetail(item) {
+  currentListing = item;
+  renderBookingAction();
   document.title = `${listingTitle(item)} — Свой адрес`;
   document.querySelector('#detail-title').textContent = listingTitle(item);
   document.querySelector('#detail-address').textContent = item.address;
@@ -57,6 +60,7 @@ function renderDetail(item) {
 }
 
 async function loadDetail() {
+  await authReady;
   detail.hidden = detailRetry.hidden = true;
   detailMessage.hidden = false;
   detailMessage.textContent = 'Загружаем объявление…';
@@ -83,3 +87,33 @@ async function loadDetail() {
 }
 detailRetry.addEventListener('click', loadDetail);
 loadDetail();
+
+const bookButton = document.querySelector('#book-button');
+const bookingMessage = document.querySelector('#booking-message');
+function renderBookingAction() {
+  const button = document.querySelector('#book-button');
+  const login = document.querySelector('#book-login');
+  login.href = loginAddress();
+  login.hidden = !Auth.state || !!Auth.state.user || currentListing.status !== 'available';
+  button.hidden = !Auth.state?.user || currentListing.status !== 'available';
+  button.textContent = currentListing.deal_type === 'rent' ? 'Арендовать' : 'Купить';
+  button.disabled = false;
+}
+bookButton.addEventListener('click', async () => {
+  if (bookButton.disabled) return;
+  bookButton.disabled = true;
+  bookingMessage.textContent = 'Создаём бронирование…';
+  try {
+    const result = await Auth.post(`/api/listings/${encodeURIComponent(id)}/book`);
+    bookingMessage.textContent = result.message;
+    currentListing.status = 'reserved';
+    renderDetail(currentListing);
+    document.querySelector('#booking-account').hidden = false;
+  } catch (error) {
+    bookingMessage.textContent = error.message;
+    if (error.status === 409) await loadDetail();
+    if (error.status === 401 || error.status === 403) {
+      try { await Auth.load(); renderBookingAction(); } catch { /* Сообщение исходной ошибки остаётся. */ }
+    }
+  } finally { bookButton.disabled = false; }
+});

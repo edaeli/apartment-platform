@@ -85,7 +85,7 @@ with tempfile.TemporaryDirectory(prefix="apartment-http-") as temporary:
             catalog = get_json("/api/listings")
             check(catalog["count"] == len(catalog["items"]) == 24 and catalog["total"] == 1000, "Expected 24 of 1000 listings")
             check(catalog["page"] == 1 and catalog["page_size"] == 24 and catalog["total_pages"] == 42, "Wrong pagination metadata")
-            check(health["schema_version"] == 2, "Migration not applied")
+            check(health["schema_version"] == 3, "Migration not applied")
             check(get_json("/api/listings?type=rent")["total"] == 500, "Wrong rent count")
             check(get_json("/api/listings?type=sale")["total"] == 500, "Wrong sale count")
             check(request("/api/listings?type=wrong")[0] == 400, "Invalid type accepted")

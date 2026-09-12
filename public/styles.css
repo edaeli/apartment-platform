@@ -170,3 +170,39 @@ input:focus-visible, select:focus-visible { outline: 3px solid #ba812f; outline-
   .detail-grid { grid-template-columns: 1fr; }
   .detail-price { font-size: 29px; }
 }
+
+/* Аккаунт и бронирования: общая палитра и доступные состояния форм. */
+.header { min-height: 100px; height: auto; padding-block: 20px; flex-wrap: wrap; }
+.header .city { display: none; }
+.account-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 13px; }
+.account-nav a:hover, .inline-link:hover { text-decoration: underline; }
+.account-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.text-button { border: 0; padding: 8px 0; background: transparent; color: var(--green); }
+button:disabled { opacity: .55; cursor: wait; }
+.form-message { color: #734b26; line-height: 1.6; font-size: 14px; overflow-wrap: anywhere; }
+.form-message:empty { display: none; }
+.form-note { color: #687166; font-size: 13px; line-height: 1.7; }
+.inline-link { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.auth-main { max-width: 580px; padding-block: 35px 60px; }
+.auth-panel { margin-top: 25px; padding: 30px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.auth-panel h1 { font-size: 36px; letter-spacing: -1px; margin-top: 18px; }
+.auth-form { display: grid; gap: 18px; margin-top: 25px; }
+.auth-form label { display: grid; gap: 8px; font-size: 14px; }
+.auth-form input { width: 100%; padding: 12px; border: 1px solid #b8c4b4; border-radius: 5px; }
+.auth-form p { margin: 0; }
+.booking-action { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); }
+.bookings-list { display: grid; gap: 24px; margin-block: 30px; }
+.booking-card { display: grid; grid-template-columns: minmax(200px, 34%) 1fr; gap: 24px; padding: 22px; background: white; border: 1px solid var(--line); border-radius: 10px; }
+.booking-card h2 { font-size: 23px; margin-top: 0; }
+.booking-card p { font-size: 14px; line-height: 1.6; }
+.booking-card .price { font-size: 22px; }
+.booking-photos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; align-content: start; }
+.booking-photos img { width: 100%; aspect-ratio: 1.6; object-fit: cover; border-radius: 5px; }
+.booking-photos img:first-child { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .header { padding-block: 16px; gap: 18px; }
+  .account-nav { width: 100%; gap: 14px; }
+  .account-name { max-width: 130px; }
+  .auth-panel { padding: 22px 18px; }
+  .booking-card { grid-template-columns: 1fr; padding: 16px; gap: 18px; }
+}

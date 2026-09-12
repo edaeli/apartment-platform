@@ -7,13 +7,16 @@
   <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="/common.js" defer></script>
+  <script src="/auth-client.js" defer></script>
   <script src="/listing.js" defer></script>
 </head>
 <body>
   <header class="header wrap">
     <a class="brand" href="/" aria-label="Свой адрес — главная"><span class="brand-icon" aria-hidden="true">⌂</span> свой адрес.</a>
     <span class="city">Ереван, Армения</span>
+    <nav id="account-nav" class="account-nav" aria-label="Аккаунт">Проверяем вход…</nav>
   </header>
+  <p id="account-message" class="wrap form-message" role="status"></p>
   <main class="wrap detail-main">
     <a class="back-link" id="back-to-catalog" href="/#catalog">← Вернуться в каталог</a>
     <div class="message" id="detail-message" role="status">Загружаем объявление…</div>
@@ -30,6 +33,13 @@
           <p id="detail-deal" class="eyebrow"></p>
           <p id="detail-price" class="price detail-price"></p>
           <dl id="characteristics"></dl>
+          <div class="booking-action">
+            <p class="form-note">Действие создаёт бронирование внутри учебного сайта. Без оплаты и без реальной сделки.</p>
+            <button id="book-button" class="action-button" type="button" hidden></button>
+            <a id="book-login" class="primary-link" href="/login" hidden>Войти для бронирования</a>
+            <p id="booking-message" class="form-message" role="status"></p>
+            <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
+          </div>
           <p class="location-note">Местоположение указано по адресу и району. Точная точка на карте не публикуется: данные учебные.</p>
         </section>
       </div>

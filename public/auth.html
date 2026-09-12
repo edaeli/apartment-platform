@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход — Свой адрес</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/auth-client.js" defer></script>
+  <script src="/auth-page.js" defer></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="/">⌂ свой адрес.</a>
+    <nav id="account-nav" class="account-nav" aria-label="Аккаунт">Проверяем вход…</nav>
+  </header>
+  <p id="account-message" class="wrap form-message" role="status"></p>
+  <main class="wrap auth-main">
+    <a class="back-link" id="auth-back" href="/">← Вернуться на сайт</a>
+    <section class="auth-panel">
+      <p class="eyebrow">ВАШ ЛИЧНЫЙ КАБИНЕТ</p>
+      <h1 id="auth-title">Войти</h1>
+      <p class="form-note">Сохраняйте бронирования квартир и домов в одном месте.</p>
+      <form id="auth-form" class="auth-form">
+        <label id="name-label" hidden>Имя<input name="name" autocomplete="name" minlength="2" maxlength="80"></label>
+        <label>Email<input name="email" type="email" autocomplete="username" maxlength="254" required placeholder="name@example.com"></label>
+        <label>Пароль<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required aria-describedby="password-hint"></label>
+        <p id="password-hint" class="form-note">От 8 до 128 байт. Русская буква обычно занимает 2 байта. Не используйте пароль от других сайтов.</p>
+        <button id="auth-submit" class="action-button" type="submit" disabled>Войти</button>
+        <p id="auth-message" class="form-message" role="status">Подготавливаем форму…</p>
+      </form>
+      <p><a id="auth-switch" class="inline-link" href="/register">Создать аккаунт</a></p>
+      <p class="form-note">Учебный сайт. Бронирование происходит без оплаты и без реальной сделки.</p>
+    </section>
+    <noscript><p class="message">Для входа требуется JavaScript.</p></noscript>
+  </main>
+</body>
+</html>

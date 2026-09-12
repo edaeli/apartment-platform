@@ -1,4 +1,6 @@
 #include "database.h"
+#include "http_helpers.h"
+#include "auth.h"
 
 #include <drogon/drogon.h>
 #include <charconv>
@@ -17,23 +19,27 @@ struct Options {
     fs::path db;
     int port = 8080;
     bool initOnly = false;
+    bool secureCookies = false;
+    std::string origin;
 };
 
 Options parseOptions(int argc, char* argv[]) {
     Options options;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
+        if (argument == "--secure-cookies") { options.secureCookies = true; continue; }
         if (argument == "--init-db") {
             options.initOnly = true;
             continue;
         }
-        if (argument != "--root" && argument != "--db" && argument != "--port") {
+        if (argument != "--root" && argument != "--db" && argument != "--port" && argument != "--origin") {
             throw std::runtime_error("Unknown option: " + argument + ". Use --help.");
         }
         if (++i == argc) throw std::runtime_error("Missing value for " + argument);
         const std::string value = argv[i];
         if (argument == "--root") options.root = value;
         if (argument == "--db") options.db = value;
+        if (argument == "--origin") options.origin = value;
         if (argument == "--port") {
             const auto result = std::from_chars(value.data(), value.data() + value.size(), options.port);
             if (result.ec != std::errc{} || result.ptr != value.data() + value.size()
@@ -46,33 +52,6 @@ Options parseOptions(int argc, char* argv[]) {
     if (options.db.empty()) options.db = options.root / "data/apartments.sqlite3";
     options.db = fs::absolute(options.db).lexically_normal();
     return options;
-}
-
-drogon::HttpResponsePtr jsonResponse(const Json::Value& value,
-                                    drogon::HttpStatusCode status = drogon::k200OK) {
-    auto response = drogon::HttpResponse::newHttpJsonResponse(value);
-    response->setStatusCode(status);
-    response->addHeader("Cache-Control", "no-store");
-    response->addHeader("X-Content-Type-Options", "nosniff");
-    return response;
-}
-
-drogon::HttpResponsePtr errorResponse(const std::string& message, drogon::HttpStatusCode status) {
-    Json::Value value;
-    value["error"] = message;
-    return jsonResponse(value, status);
-}
-
-std::int64_t parseInteger(const std::string& value, const std::string& name,
-                          std::int64_t minimum, std::int64_t maximum) {
-    std::int64_t result = 0;
-    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result);
-    if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()
-        || result < minimum || result > maximum) {
-        throw std::invalid_argument("Параметр " + name + " должен быть целым числом от " +
-            std::to_string(minimum) + " до " + std::to_string(maximum));
-    }
-    return result;
 }
 
 ListingFilters parseFilters(const drogon::HttpRequestPtr& request) {
@@ -142,39 +121,12 @@ ListingFilters parseFilters(const drogon::HttpRequestPtr& request) {
     }
     return filters;
 }
-
-Json::Value listingToJson(const Listing& item) {
-    Json::Value json;
-    json["id"] = Json::Int64(item.id);
-    json["property_id"] = Json::Int64(item.propertyId);
-    json["price"] = Json::Int64(item.price);
-    json["currency"] = "AMD";
-    json["deal_type"] = item.dealType;
-    json["status"] = item.status;
-    json["kind"] = item.kind;
-    json["address"] = item.address;
-    json["district"] = item.district;
-    json["description"] = item.description;
-    json["area"] = item.area;
-    json["rooms"] = item.rooms;
-    json["floor"] = item.floor;
-    json["latitude"] = item.latitude;
-    json["longitude"] = item.longitude;
-    json["photos"] = Json::Value(Json::arrayValue);
-    for (const auto& photo : item.photos) {
-        Json::Value image;
-        image["url"] = photo.url;
-        image["caption"] = photo.caption;
-        json["photos"].append(image);
-    }
-    return json;
-}
 }
 
 int main(int argc, char* argv[]) {
     try {
         if (argc == 2 && std::string(argv[1]) == "--help") {
-            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db]\n"
+            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db] [--secure-cookies] [--origin https://example.com]\n"
                       << "Default root: current directory. Default database: ROOT/data/apartments.sqlite3\n";
             return 0;
         }
@@ -197,6 +149,8 @@ int main(int argc, char* argv[]) {
 
         const std::string dbPath = options.db.string();
         auto& app = drogon::app();
+        AuthService auth(dbPath, publicPath.string(), options.port, options.secureCookies, options.origin);
+        auth.registerRoutes(app);
         app.registerHandler("/api/health",
             [dbPath](const drogon::HttpRequestPtr&,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
@@ -292,6 +246,7 @@ int main(int argc, char* argv[]) {
            .setHomePage("index.html")
            .setUploadPath((options.db.parent_path() / "uploads").string())
            .setFileTypes({"html", "css", "js", "jpg", "svg", "ico"})
+           .setClientMaxBodySize(16 * 1024)
            .setThreadNum(2)
            .addListener("127.0.0.1", static_cast<std::uint16_t>(options.port))
            .run();

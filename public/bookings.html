@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мои бронирования — Свой адрес</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/common.js" defer></script>
+  <script src="/auth-client.js" defer></script>
+  <script src="/bookings.js" defer></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="/">⌂ свой адрес.</a>
+    <nav id="account-nav" class="account-nav" aria-label="Аккаунт">Проверяем вход…</nav>
+  </header>
+  <p id="account-message" class="wrap form-message" role="status"></p>
+  <main class="wrap detail-main">
+    <a class="back-link" href="/#catalog">← В каталог</a>
+    <h1>Мои бронирования</h1>
+    <p class="form-note">Здесь указана цена на момент бронирования. Оплата и реальные сделки не производятся.</p>
+    <div id="bookings-message" class="message" role="status">Загружаем ваши бронирования…</div>
+    <button id="bookings-retry" class="retry" type="button" hidden>Попробовать снова</button>
+    <div id="bookings-list" class="bookings-list" aria-busy="true"></div>
+    <noscript><p class="message">Для просмотра бронирований требуется JavaScript.</p></noscript>
+  </main>
+</body>
+</html>

@@ -8,6 +8,7 @@
   <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="/common.js" defer></script>
+  <script src="/auth-client.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -15,7 +16,9 @@
     <a class="brand" href="/" aria-label="Свой адрес — главная"><span class="brand-icon" aria-hidden="true">⌂</span> свой адрес<span class="brand-dot">.</span></a>
     <a class="nav-link" href="#catalog">Каталог жилья <span aria-hidden="true">↗</span></a>
     <span class="city"><span aria-hidden="true">◎</span> Ереван, Армения</span>
+    <nav id="account-nav" class="account-nav" aria-label="Аккаунт">Проверяем вход…</nav>
   </header>
+  <p id="account-message" class="wrap form-message" role="status"></p>
 
   <main class="wrap">
     <section class="hero" aria-labelledby="hero-title">

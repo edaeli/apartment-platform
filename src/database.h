@@ -3,8 +3,24 @@
 #include <sqlite3.h>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
+
+class SqliteError : public std::runtime_error {
+public:
+    SqliteError(int code, const std::string& message) : std::runtime_error(message), code(code) {}
+    bool busy() const { return (code & 255) == SQLITE_BUSY || (code & 255) == SQLITE_LOCKED; }
+    int code;
+};
+
+enum class BookingFailure { notFound, conflict, busy };
+class BookingError : public std::runtime_error {
+public:
+    BookingError(BookingFailure reason, const std::string& message)
+        : std::runtime_error(message), reason(reason) {}
+    BookingFailure reason;
+};
 
 // RAII: деструктор освобождает запрос, даже если возникло исключение.
 class Statement {
@@ -55,6 +71,17 @@ struct ListingPage {
     std::int64_t total = 0;
 };
 
+struct User {
+    std::int64_t id;
+    std::string name, email, passwordHash, createdAt;
+};
+
+struct Booking {
+    std::int64_t id, userId, listingId, propertyId, price;
+    std::string dealType, status, createdAt, endedAt;
+    Listing listing;
+};
+
 // Одно соединение на операцию/HTTP-запрос. Соединение не делится между потоками.
 class Database {
 public:
@@ -69,6 +96,11 @@ public:
     ListingPage listings(const ListingFilters& filters);
     std::optional<Listing> listing(std::int64_t id);
     std::vector<std::string> districts();
+    std::optional<User> userByEmail(const std::string& email);
+    std::optional<User> userById(std::int64_t id);
+    std::int64_t createUser(const std::string& name, const std::string& email, const std::string& hash);
+    std::int64_t book(std::int64_t userId, std::int64_t listingId);
+    std::vector<Booking> bookingsForUser(std::int64_t userId);
     sqlite3* handle() const { return db_; }
 
 private:

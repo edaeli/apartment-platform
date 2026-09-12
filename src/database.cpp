@@ -9,8 +9,9 @@
 Statement::Statement(sqlite3* db, const std::string& sql) {
     if (sqlite3_prepare_v2(db, sql.c_str(), -1, &statement_, nullptr) != SQLITE_OK) {
         const std::string message = sqlite3_errmsg(db);
+        const int code = sqlite3_extended_errcode(db);
         sqlite3_finalize(statement_);
-        throw std::runtime_error(message);
+        throw SqliteError(code, message);
     }
 }
 
@@ -18,7 +19,8 @@ Statement::~Statement() { sqlite3_finalize(statement_); }
 
 void Statement::check(int result) const {
     if (result != SQLITE_OK) {
-        throw std::runtime_error(sqlite3_errmsg(sqlite3_db_handle(statement_)));
+        throw SqliteError(sqlite3_extended_errcode(sqlite3_db_handle(statement_)),
+                          sqlite3_errmsg(sqlite3_db_handle(statement_)));
     }
 }
 
@@ -37,7 +39,8 @@ bool Statement::step() {
     const int result = sqlite3_step(statement_);
     if (result == SQLITE_ROW) return true;
     if (result == SQLITE_DONE) return false;
-    throw std::runtime_error(sqlite3_errmsg(sqlite3_db_handle(statement_)));
+    throw SqliteError(sqlite3_extended_errcode(sqlite3_db_handle(statement_)),
+                          sqlite3_errmsg(sqlite3_db_handle(statement_)));
 }
 
 std::int64_t Statement::integer(int column) const {
@@ -63,6 +66,7 @@ Database::Database(const std::string& path, bool create) {
         throw std::runtime_error(message);
     }
     try {
+        sqlite3_extended_result_codes(db_, 1);
         if (sqlite3_busy_timeout(db_, 5000) != SQLITE_OK) {
             throw std::runtime_error(sqlite3_errmsg(db_));
         }
@@ -83,8 +87,9 @@ void Database::execute(const std::string& sql) {
     char* error = nullptr;
     if (sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &error) != SQLITE_OK) {
         const std::string message = error ? error : sqlite3_errmsg(db_);
+        const int code = sqlite3_extended_errcode(db_);
         sqlite3_free(error);
-        throw std::runtime_error(message);
+        throw SqliteError(code, message);
     }
 }
 
@@ -98,14 +103,15 @@ void Database::migrate(const std::string& schemaPath) {
     execute("BEGIN IMMEDIATE");
     try {
         const auto version = scalar("PRAGMA user_version");
-        if (version < 0 || version > 2) {
+        if (version < 0 || version > 3) {
             throw std::runtime_error("Unsupported database schema version");
         }
         const std::vector<std::string> migrations{
             schemaPath,
-            (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string()
+            (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string(),
+            (std::filesystem::path(schemaPath).parent_path() / "003_users_bookings.sql").string()
         };
-        for (auto next = version + 1; next <= 2; ++next) {
+        for (auto next = version + 1; next <= 3; ++next) {
             const auto& path = migrations.at(static_cast<std::size_t>(next - 1));
             std::ifstream file(path);
             if (!file) throw std::runtime_error("Cannot read schema: " + path);
