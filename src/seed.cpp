@@ -1,19 +1,21 @@
 #include "database.h"
 
 #include <array>
+#include <iomanip>
+#include <sstream>
 
 namespace {
 struct DemoProperty {
-    const char* key;
-    const char* kind;
-    const char* address;
-    const char* district;
+    std::string key;
+    std::string kind;
+    std::string address;
+    std::string district;
     double area;
     int rooms;
     int floor;
-    const char* dealType;
+    std::string dealType;
     std::int64_t price;
-    const char* description;
+    std::string description;
     double latitude;
     double longitude;
 };
@@ -45,12 +47,51 @@ const std::array<DemoProperty, 12> demoProperties{{
     {"demo-012", "house", "ул. Руставели, 30", "Канакер-Зейтун", 175, 5, 0, "sale", 76000000,
      "Дом с большой гостиной, кабинетом и участком. Пространство для семейных встреч.", 40.2240, 44.5370}
 }};
+
+DemoProperty makeDemoProperty(int number) {
+    if (number <= 12) return demoProperties.at(static_cast<std::size_t>(number - 1));
+    const std::array<std::string, 9> districts{
+        "Кентрон", "Арабкир", "Нор Норк", "Аджапняк", "Аван",
+        "Шенгавит", "Эребуни", "Малатия-Себастия", "Канакер-Зейтун"
+    };
+    const std::array<std::string, 9> streets{
+        "ул. Сарьяна", "пр. Комитаса", "ул. Багреванда", "ул. Алабяна",
+        "ул. Ачаряна", "ул. Ширака", "ул. Давида Бека", "ул. Исакова", "ул. Руставели"
+    };
+    const auto district = static_cast<std::size_t>((number - 13) % 9);
+    const bool house = number % 5 == 0;
+    const bool rent = number % 2 != 0;
+    const int rooms = house ? 3 + (number / 9) % 4 : 1 + (number / 9) % 4;
+    const double area = house ? 80 + rooms * 19 + (number * 7 % 13) * 5
+                              : 18 + rooms * 17 + (number * 37 % 16) * 2.5;
+    const std::int64_t price = rent
+        ? (85000 + static_cast<std::int64_t>(area * 1700) + district * 7500) / 1000 * 1000
+        : static_cast<std::int64_t>(area * (330000 + district * 19000)) + (number % 5) * 500000;
+    std::ostringstream key;
+    key << "demo-" << std::setw(3) << std::setfill('0') << number;
+    // Формулы от номера дают одинаковые данные на каждом запуске и платформе.
+    // Координаты — лишь приблизительный центр города, карта их не показывает.
+    return {key.str(), house ? "house" : "apartment",
+        streets[district] + ", " + std::to_string(100 + number / 9) +
+            (house ? "" : ", кв. " + std::to_string(number)),
+        districts[district], area, rooms, house ? 0 : 1 + (number * 7) % 16,
+        rent ? "rent" : "sale", price,
+        "Демонстрационный объект № " + std::to_string(number) + ". " +
+        (house ? "Дом с отдельным входом и местом для отдыха во дворе. "
+               : "Квартира с удобной планировкой и отдельной кухней. ") +
+        "Учебное описание: " + std::to_string(rooms) +
+        " комнат, район " + districts[district] +
+        ". Адрес и характеристики вымышлены; фотографии служат иллюстрациями.",
+        40.1872, 44.5152};
+}
+
 }
 
 void seedDemoData(Database& db) {
     db.execute("BEGIN IMMEDIATE");
     try {
-        for (const auto& item : demoProperties) {
+        for (int number = 1; number <= 1000; ++number) {
+            const auto item = makeDemoProperty(number);
             Statement property(db.handle(), R"SQL(
                 INSERT INTO properties
                     (demo_key, kind, address, district, area, rooms, floor,

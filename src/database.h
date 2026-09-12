@@ -2,6 +2,7 @@
 
 #include <sqlite3.h>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,20 @@ struct Listing {
     std::vector<Photo> photos;
 };
 
+struct ListingFilters {
+    std::string type;
+    std::string district;
+    std::optional<std::int64_t> minPrice, maxPrice, rooms;
+    std::string sort = "price_asc";
+    std::int64_t page = 1;
+    std::int64_t pageSize = 24;
+};
+
+struct ListingPage {
+    std::vector<Listing> items;
+    std::int64_t total = 0;
+};
+
 // Одно соединение на операцию/HTTP-запрос. Соединение не делится между потоками.
 class Database {
 public:
@@ -51,7 +66,9 @@ public:
     void execute(const std::string& sql); // Только фиксированный SQL из кода/схемы!
     std::int64_t scalar(const std::string& sql);
     void migrate(const std::string& schemaPath);
-    std::vector<Listing> listings(const std::string& dealType);
+    ListingPage listings(const ListingFilters& filters);
+    std::optional<Listing> listing(std::int64_t id);
+    std::vector<std::string> districts();
     sqlite3* handle() const { return db_; }
 
 private:

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Объявление — Свой адрес</title>
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/common.js" defer></script>
+  <script src="/listing.js" defer></script>
+</head>
+<body>
+  <header class="header wrap">
+    <a class="brand" href="/" aria-label="Свой адрес — главная"><span class="brand-icon" aria-hidden="true">⌂</span> свой адрес.</a>
+    <span class="city">Ереван, Армения</span>
+  </header>
+  <main class="wrap detail-main">
+    <a class="back-link" id="back-to-catalog" href="/#catalog">← Вернуться в каталог</a>
+    <div class="message" id="detail-message" role="status">Загружаем объявление…</div>
+    <button id="detail-retry" class="retry" type="button" hidden>Попробовать снова</button>
+    <article id="listing-detail" hidden>
+      <div class="detail-heading"><div><p class="eyebrow" id="detail-district"></p><h1 id="detail-title"></h1><p id="detail-address"></p></div><span id="detail-status" class="status-label"></span></div>
+      <div class="detail-grid">
+        <section class="gallery" aria-label="Фотографии объявления">
+          <img id="main-photo" class="main-photo" alt="">
+          <div id="thumbnails" class="thumbnails"></div>
+          <p class="photo-disclaimer">Демонстрационные иллюстрации, не фотографии указанного адреса.</p>
+        </section>
+        <section class="detail-info" aria-label="Характеристики">
+          <p id="detail-deal" class="eyebrow"></p>
+          <p id="detail-price" class="price detail-price"></p>
+          <dl id="characteristics"></dl>
+          <p class="location-note">Местоположение указано по адресу и району. Точная точка на карте не публикуется: данные учебные.</p>
+        </section>
+      </div>
+      <section class="full-description"><h2>Об объекте</h2><p id="detail-description"></p></section>
+    </article>
+    <noscript><p class="message">Включите JavaScript, чтобы загрузить объявление.</p></noscript>
+    <aside class="demo-note"><p><strong>Учебный каталог.</strong> Адреса, характеристики и цены демонстрационные. Фотографии повторяются. Реальные заявки не принимаются.</p></aside>
+  </main>
+  <footer class="footer wrap"><span class="brand footer-brand">свой адрес.</span><span>Учебный проект · 2026</span></footer>
+</body>
+</html>

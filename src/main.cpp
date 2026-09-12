@@ -4,6 +4,9 @@
 #include <charconv>
 #include <filesystem>
 #include <iostream>
+#include <algorithm>
+#include <limits>
+#include <set>
 #include <stdexcept>
 
 namespace fs = std::filesystem;
@@ -58,6 +61,86 @@ drogon::HttpResponsePtr errorResponse(const std::string& message, drogon::HttpSt
     Json::Value value;
     value["error"] = message;
     return jsonResponse(value, status);
+}
+
+std::int64_t parseInteger(const std::string& value, const std::string& name,
+                          std::int64_t minimum, std::int64_t maximum) {
+    std::int64_t result = 0;
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), result);
+    if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()
+        || result < minimum || result > maximum) {
+        throw std::invalid_argument("Параметр " + name + " должен быть целым числом от " +
+            std::to_string(minimum) + " до " + std::to_string(maximum));
+    }
+    return result;
+}
+
+ListingFilters parseFilters(const drogon::HttpRequestPtr& request) {
+    const std::set<std::string> allowed{
+        "type", "district", "min_price", "max_price", "rooms", "sort", "page", "page_size"
+    };
+    // getParameters хранит одно значение на ключ. Повторы отвергаем до его использования.
+    std::set<std::string> seen;
+    const auto& raw = request->query();
+    for (std::size_t begin = 0; begin < raw.size();) {
+        const auto end = raw.find('&', begin);
+        const auto part = raw.substr(begin, end == std::string::npos ? end : end - begin);
+        if (part.find('=') == std::string::npos || part.back() == '=') {
+            throw std::invalid_argument("Каждый параметр должен иметь непустое значение");
+        }
+        const std::string hex = "0123456789abcdefABCDEF";
+        for (std::size_t i = 0; i < part.size(); ++i) {
+            if (part[i] != '%') continue;
+            if (i + 2 >= part.size() || hex.find(part[i + 1]) == std::string::npos ||
+                hex.find(part[i + 2]) == std::string::npos) {
+                throw std::invalid_argument("Некорректное кодирование параметров URL");
+            }
+            i += 2;
+        }
+        const auto key = drogon::utils::urlDecode(part.substr(0, part.find('=')));
+        if (!allowed.count(key) || !seen.insert(key).second) {
+            throw std::invalid_argument("Неизвестный или повторяющийся параметр запроса");
+        }
+        if (end == std::string::npos) break;
+        begin = end + 1;
+    }
+    ListingFilters filters;
+    for (const auto& [name, value] : request->getParameters()) {
+        if (!allowed.count(name) || value.empty()) {
+            throw std::invalid_argument("Неизвестный или пустой параметр запроса");
+        }
+        if (name == "type") {
+            if (value != "rent" && value != "sale") {
+                throw std::invalid_argument("Параметр type должен быть rent или sale");
+            }
+            filters.type = value;
+        } else if (name == "district") {
+            if (value.size() > 100 || std::any_of(value.begin(), value.end(),
+                [](unsigned char c) { return c < 32 || c == 127; })) {
+                throw std::invalid_argument("Название района должно содержать до 100 байт без управляющих символов");
+            }
+            filters.district = value;
+        } else if (name == "sort") {
+            if (value != "price_asc" && value != "price_desc" && value != "area_asc" && value != "area_desc") {
+                throw std::invalid_argument("Параметр sort: price_asc, price_desc, area_asc или area_desc");
+            }
+            filters.sort = value;
+        } else if (name == "rooms") {
+            filters.rooms = parseInteger(value, name, 1, 100);
+        } else if (name == "page") {
+            filters.page = parseInteger(value, name, 1, 1000000);
+        } else if (name == "page_size") {
+            filters.pageSize = parseInteger(value, name, 1, 100);
+        } else if (name == "min_price") {
+            filters.minPrice = parseInteger(value, name, 0, 1000000000000LL);
+        } else if (name == "max_price") {
+            filters.maxPrice = parseInteger(value, name, 0, 1000000000000LL);
+        }
+    }
+    if (filters.minPrice && filters.maxPrice && *filters.minPrice > *filters.maxPrice) {
+        throw std::invalid_argument("Минимальная цена не должна превышать максимальную");
+    }
+    return filters;
 }
 
 Json::Value listingToJson(const Listing& item) {
@@ -137,23 +220,70 @@ int main(int argc, char* argv[]) {
         app.registerHandler("/api/listings",
             [dbPath](const drogon::HttpRequestPtr& request,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-                const auto type = request->getParameter("type");
-                if (!type.empty() && type != "rent" && type != "sale") {
-                    callback(errorResponse("Параметр type должен быть rent или sale", drogon::k400BadRequest));
-                    return;
-                }
                 try {
+                    const auto filters = parseFilters(request);
                     Database db(dbPath);
-                    const auto listings = db.listings(type);
+                    const auto page = db.listings(filters);
+                    const auto pages = (page.total + filters.pageSize - 1) / filters.pageSize;
                     Json::Value result;
                     result["items"] = Json::Value(Json::arrayValue);
-                    for (const auto& item : listings) result["items"].append(listingToJson(item));
-                    result["count"] = Json::UInt64(listings.size());
+                    for (const auto& item : page.items) result["items"].append(listingToJson(item));
+                    result["count"] = Json::UInt64(page.items.size());
+                    result["total"] = Json::Int64(page.total);
+                    result["page"] = Json::Int64(filters.page);
+                    result["page_size"] = Json::Int64(filters.pageSize);
+                    result["total_pages"] = Json::Int64(pages);
+                    result["has_previous"] = filters.page > 1 && page.total > 0;
+                    result["has_next"] = filters.page < pages;
+                    result["districts"] = Json::Value(Json::arrayValue);
+                    for (const auto& district : db.districts()) result["districts"].append(district);
                     callback(jsonResponse(result));
+                } catch (const std::invalid_argument& error) {
+                    callback(errorResponse(error.what(), drogon::k400BadRequest));
                 } catch (const std::exception& error) {
                     LOG_ERROR << error.what();
                     callback(errorResponse("Не удалось загрузить объявления", drogon::k500InternalServerError));
                 }
+            }, {drogon::Get});
+
+        app.registerHandler("/api/listings/{1}",
+            [dbPath](const drogon::HttpRequestPtr&,
+                     std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+                     const std::string& value) {
+                try {
+                    const auto id = parseInteger(value, "id", 1, std::numeric_limits<std::int64_t>::max());
+                    Database db(dbPath);
+                    const auto item = db.listing(id);
+                    if (!item) {
+                        callback(errorResponse("Объявление не найдено", drogon::k404NotFound));
+                        return;
+                    }
+                    callback(jsonResponse(listingToJson(*item)));
+                } catch (const std::invalid_argument& error) {
+                    callback(errorResponse(error.what(), drogon::k400BadRequest));
+                } catch (const std::exception& error) {
+                    LOG_ERROR << error.what();
+                    callback(errorResponse("Не удалось загрузить объявление", drogon::k500InternalServerError));
+                }
+            }, {drogon::Get});
+
+        app.registerHandler("/listings/{1}",
+            [dbPath, publicPath](const drogon::HttpRequestPtr&,
+                     std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+                     const std::string& value) {
+                auto response = drogon::HttpResponse::newFileResponse((publicPath / "listing.html").string());
+                response->addHeader("Cache-Control", "no-store");
+                try {
+                    const auto id = parseInteger(value, "id", 1, std::numeric_limits<std::int64_t>::max());
+                    Database db(dbPath);
+                    if (!db.listing(id)) response->setStatusCode(drogon::k404NotFound);
+                } catch (const std::invalid_argument&) {
+                    response->setStatusCode(drogon::k400BadRequest);
+                } catch (const std::exception& error) {
+                    LOG_ERROR << error.what();
+                    response->setStatusCode(drogon::k503ServiceUnavailable);
+                }
+                callback(response);
             }, {drogon::Get});
 
         std::cout << "Open http://127.0.0.1:" << options.port << " (Ctrl+C to stop)" << std::endl;

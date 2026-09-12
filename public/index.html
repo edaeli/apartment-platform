@@ -7,6 +7,7 @@
   <title>Свой адрес — квартиры и дома в Ереване</title>
   <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/common.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -45,9 +46,30 @@
         </div>
         <span class="currency-note">Цены в армянских драмах · AMD</span>
       </div>
+      <form class="filters" id="filters" aria-label="Фильтры каталога">
+        <input type="hidden" name="type" value="">
+        <label>Район<select name="district"><option value="">Все районы</option></select></label>
+        <label>Цена от, ֏<input name="min_price" type="number" min="0" max="1000000000000" step="1" placeholder="Без минимума" inputmode="numeric"></label>
+        <label>Цена до, ֏<input name="max_price" type="number" min="0" max="1000000000000" step="1" placeholder="Без максимума" inputmode="numeric"></label>
+        <label>Комнат<input name="rooms" type="number" min="1" max="100" step="1" placeholder="Любое число" inputmode="numeric"></label>
+        <label>Сортировка<select name="sort">
+          <option value="price_asc">Цена: по возрастанию</option>
+          <option value="price_desc">Цена: по убыванию</option>
+          <option value="area_asc">Площадь: по возрастанию</option>
+          <option value="area_desc">Площадь: по убыванию</option>
+        </select></label>
+        <div class="filter-actions"><button class="action-button" type="submit">Показать</button><button class="reset-button" type="button" id="reset-filters">Сбросить</button></div>
+      </form>
       <div class="message" id="message" role="status">Загружаем объявления из каталога…</div>
       <button id="retry" class="retry" type="button" hidden>Попробовать снова</button>
       <div class="listing-grid" id="listings" aria-busy="true"></div>
+      <a id="first-page" class="primary-link" href="/" hidden>На первую страницу</a>
+      <nav class="pagination" id="pagination" aria-label="Страницы каталога" hidden>
+        <a id="previous-page" class="page-link" href="/">← Назад</a>
+        <div id="page-links" class="page-links"></div>
+        <a id="next-page" class="page-link" href="/">Далее →</a>
+        <p id="page-summary"></p>
+      </nav>
       <noscript><p class="message">Включите JavaScript, чтобы загрузить объявления с сервера.</p></noscript>
     </section>
 
@@ -57,9 +79,9 @@
 
   <template id="listing-template">
     <article class="listing-card">
-      <div class="card-image"><img loading="lazy" alt=""><span class="deal-badge"></span><span class="photo-count"></span></div>
+      <div class="card-image"><a class="cover-link" href="/"><img loading="lazy" alt=""></a><span class="deal-badge"></span><span class="photo-count"></span></div>
       <div class="card-content">
-        <p class="district"></p><h3></h3><p class="address"></p>
+        <p class="district"></p><h3><a class="listing-link" href="/"></a></h3><p class="address"></p>
         <p class="features"></p><p class="description"></p>
         <div class="card-bottom"><p class="price"></p><span class="availability"><span class="small-dot"></span> Доступно</span></div>
       </div>

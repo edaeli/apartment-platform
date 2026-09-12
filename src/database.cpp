@@ -1,6 +1,8 @@
 #include "database.h"
 
 #include <fstream>
+#include <filesystem>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 
@@ -96,17 +98,23 @@ void Database::migrate(const std::string& schemaPath) {
     execute("BEGIN IMMEDIATE");
     try {
         const auto version = scalar("PRAGMA user_version");
-        if (version == 0) {
-            std::ifstream file(schemaPath);
-            if (!file) throw std::runtime_error("Cannot read schema: " + schemaPath);
+        if (version < 0 || version > 2) {
+            throw std::runtime_error("Unsupported database schema version");
+        }
+        const std::vector<std::string> migrations{
+            schemaPath,
+            (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string()
+        };
+        for (auto next = version + 1; next <= 2; ++next) {
+            const auto& path = migrations.at(static_cast<std::size_t>(next - 1));
+            std::ifstream file(path);
+            if (!file) throw std::runtime_error("Cannot read schema: " + path);
             std::ostringstream sql;
             sql << file.rdbuf();
             execute(sql.str());
-            if (scalar("PRAGMA user_version") != 1) {
-                throw std::runtime_error("Schema did not set version 1");
+            if (scalar("PRAGMA user_version") != next) {
+                throw std::runtime_error("Migration did not set expected schema version");
             }
-        } else if (version != 1) {
-            throw std::runtime_error("Unsupported database schema version");
         }
         execute("COMMIT");
     } catch (...) {
@@ -115,19 +123,36 @@ void Database::migrate(const std::string& schemaPath) {
     }
 }
 
-std::vector<Listing> Database::listings(const std::string& dealType) {
-    // ?1 — значение, отдельно переданное SQLite, а не кусок SQL-кода.
-    Statement query(db_, R"SQL(
-        SELECT l.id, l.property_id, l.price, l.deal_type, l.status,
-               p.kind, p.address, p.district, p.description, p.area,
-               p.latitude, p.longitude, p.rooms, p.floor, ph.url, ph.caption
-        FROM listings AS l
-        JOIN properties AS p ON p.id = l.property_id
-        LEFT JOIN property_photos AS ph ON ph.property_id = p.id
-        WHERE l.status = 'available' AND (?1 = '' OR l.deal_type = ?1)
-        ORDER BY l.id ASC, ph.sort_order ASC
-    )SQL");
-    query.bind(1, dealType);
+namespace {
+// В SQL добавляются только фиксированные фрагменты. Значения связываются отдельно.
+std::string whereClause(const ListingFilters& filters) {
+    std::string sql = " WHERE l.status = 'available'";
+    if (!filters.type.empty()) sql += " AND l.deal_type = ?";
+    if (!filters.district.empty()) sql += " AND p.district = ?";
+    if (filters.minPrice) sql += " AND l.price >= ?";
+    if (filters.maxPrice) sql += " AND l.price <= ?";
+    if (filters.rooms) sql += " AND p.rooms = ?";
+    return sql;
+}
+
+int bindFilters(Statement& query, const ListingFilters& filters) {
+    int index = 1;
+    if (!filters.type.empty()) query.bind(index++, filters.type);
+    if (!filters.district.empty()) query.bind(index++, filters.district);
+    if (filters.minPrice) query.bind(index++, *filters.minPrice);
+    if (filters.maxPrice) query.bind(index++, *filters.maxPrice);
+    if (filters.rooms) query.bind(index++, *filters.rooms);
+    return index;
+}
+
+const std::string columns = R"SQL(
+    l.id, l.property_id, l.price, l.deal_type, l.status,
+    p.kind, p.address, p.district, p.description, p.area,
+    p.latitude, p.longitude, p.rooms, p.floor
+)SQL";
+const std::string tables = " FROM listings AS l JOIN properties AS p ON p.id = l.property_id";
+
+std::vector<Listing> readListings(Statement& query) {
     std::vector<Listing> result;
     while (query.step()) {
         if (result.empty() || result.back().id != query.integer(0)) {
@@ -148,9 +173,68 @@ std::vector<Listing> Database::listings(const std::string& dealType) {
             item.floor = static_cast<int>(query.integer(13));
             result.push_back(item);
         }
-        if (!query.isNull(14)) {
-            result.back().photos.push_back({query.text(14), query.text(15)});
-        }
+        if (!query.isNull(14)) result.back().photos.push_back({query.text(14), query.text(15)});
     }
+    return result;
+}
+}
+
+ListingPage Database::listings(const ListingFilters& filters) {
+    // Белый список: пользователь не может подставить произвольный ORDER BY.
+    const std::map<std::string, std::pair<std::string, std::string>> orders{
+        {"price_asc", {"l.price ASC, l.id ASC", "page.price ASC, page.id ASC"}},
+        {"price_desc", {"l.price DESC, l.id ASC", "page.price DESC, page.id ASC"}},
+        {"area_asc", {"p.area ASC, l.id ASC", "page.area ASC, page.id ASC"}},
+        {"area_desc", {"p.area DESC, l.id ASC", "page.area DESC, page.id ASC"}}
+    };
+    const auto order = orders.find(filters.sort);
+    if (order == orders.end() || filters.page < 1 || filters.page > 1000000 ||
+        filters.pageSize < 1 || filters.pageSize > 100) {
+        throw std::invalid_argument("Некорректная сортировка или пагинация");
+    }
+    const auto where = whereClause(filters);
+    // COUNT и сама страница читают один снимок базы даже при параллельных изменениях.
+    execute("BEGIN");
+    try {
+        ListingPage result;
+        {
+            Statement count(db_, "SELECT COUNT(*)" + tables + where);
+            bindFilters(count, filters);
+            if (!count.step()) throw std::runtime_error("Expected count");
+            result.total = count.integer(0);
+        }
+        // LIMIT применяется к объявлениям ДО соединения с несколькими фото.
+        Statement query(db_, "WITH page AS (SELECT " + columns + tables + where +
+            " ORDER BY " + order->second.first + " LIMIT ? OFFSET ?) "
+            "SELECT page.*, ph.url, ph.caption FROM page "
+            "LEFT JOIN property_photos AS ph ON ph.property_id = page.property_id "
+            "ORDER BY " + order->second.second + ", ph.sort_order ASC");
+        int index = bindFilters(query, filters);
+        query.bind(index++, filters.pageSize);
+        query.bind(index, (filters.page - 1) * filters.pageSize);
+        result.items = readListings(query);
+        execute("COMMIT");
+        return result;
+    } catch (...) {
+        execute("ROLLBACK");
+        throw;
+    }
+}
+
+std::optional<Listing> Database::listing(std::int64_t id) {
+    // Прямая страница показывает также закрытые объявления, сохраняя историю.
+    Statement query(db_, "SELECT " + columns + ", ph.url, ph.caption" + tables +
+        " LEFT JOIN property_photos AS ph ON ph.property_id = p.id "
+        "WHERE l.id = ? ORDER BY ph.sort_order ASC");
+    query.bind(1, id);
+    auto result = readListings(query);
+    if (result.empty()) return std::nullopt;
+    return result.front();
+}
+
+std::vector<std::string> Database::districts() {
+    Statement query(db_, "SELECT DISTINCT district FROM properties ORDER BY district");
+    std::vector<std::string> result;
+    while (query.step()) result.push_back(query.text(0));
     return result;
 }
