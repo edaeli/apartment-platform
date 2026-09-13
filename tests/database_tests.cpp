@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         require(secondConnection.scalar("PRAGMA foreign_keys") == 1, "Foreign keys disabled on second connection");
         db.migrate(argv[1]);
         seedDemoData(db);
-        require(db.scalar("PRAGMA user_version") == 5, "Wrong schema version");
+        require(db.scalar("PRAGMA user_version") == 6, "Wrong schema version");
         require(db.scalar("SELECT COUNT(*) FROM properties") == 1000, "Expected 1000 properties");
         require(db.scalar("SELECT COUNT(*) FROM listings") == 1000, "Expected 1000 listings");
         require(db.scalar("SELECT COUNT(*) FROM property_photos") == 3000, "Expected 3000 photos");
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
         upgrade.migrate(argv[1]);
         seedDemoData(upgrade);
         const auto oldListing = upgrade.listing(6000);
-        require(upgrade.scalar("PRAGMA user_version") == 5, "Old schema not upgraded");
+        require(upgrade.scalar("PRAGMA user_version") == 6, "Old schema not upgraded");
         require(upgrade.scalar("SELECT COUNT(*) FROM properties") == 1000, "Upgrade duplicated objects");
         require(oldListing && oldListing->propertyId == 5000 && oldListing->price == 1234567 &&
                 oldListing->status == "closed" && oldListing->address == "Edited address" &&

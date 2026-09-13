@@ -19,3 +19,8 @@ function showPhoto(image, photo) {
   image.src = photo?.url || '/images/placeholder.svg';
   image.alt = photo ? `${photo.caption} — демонстрационная фотография` : 'Фотография отсутствует';
 }
+
+function renovationLabel(value) {
+  return {unspecified: 'Не указано', needs_repair: 'Требует ремонта', cosmetic: 'Косметический',
+    good: 'Хороший', designer: 'Дизайнерский'}[value] || 'Не указано';
+}

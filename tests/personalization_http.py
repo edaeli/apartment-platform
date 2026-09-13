@@ -145,10 +145,10 @@ with tempfile.TemporaryDirectory(prefix="apartment-personal-") as temporary:
     with (Path(temporary) / "server.log").open("w+") as log:
         try:
             start()
-            check(rows("PRAGMA user_version") == [(5,)], "Migration 5 not applied")
+            check(rows("PRAGMA user_version") == [(6,)], "Migration 5 not applied")
             for table, records in legacy.items():
                 current = {r[0]: r for r in rows(f"SELECT * FROM {table}")}
-                check(all(current[r[0]] == r for r in records), "Migration lost stage4 " + table)
+                check(all(current[r[0]][:len(r)] == r for r in records), "Migration lost stage4 " + table)
             check(rows("SELECT COUNT(*) FROM properties") == [(1000,)], "Seed duplicated property")
             a, a2, b, guest = Client(), Client(), Client(), Client()
             a.sign_in("a@example.com", True); a2.sign_in("a@example.com"); b.sign_in("b@example.com", True)

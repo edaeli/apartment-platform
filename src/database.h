@@ -58,6 +58,7 @@ struct Listing {
     std::vector<Photo> photos;
     std::optional<std::int64_t> sellerUserId, sourceBookingId;
     std::string createdAt;
+    std::string renovation = "unspecified";
     bool isFavorite = false;
 };
 

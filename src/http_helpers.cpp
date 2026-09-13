@@ -45,6 +45,7 @@ Json::Value listingToJson(const Listing& item) {
     json["address"] = item.address;
     json["district"] = item.district;
     json["description"] = item.description;
+    json["renovation"] = item.renovation;
     json["area"] = item.area;
     json["rooms"] = item.rooms;
     json["floor"] = item.floor;

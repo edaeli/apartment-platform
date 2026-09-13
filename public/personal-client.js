@@ -11,6 +11,12 @@ function listingCard(item, returnTo = '/#catalog') {
   card.querySelector('.district').textContent = item.district;
   card.querySelector('.address').textContent = item.address;
   card.querySelector('.features').textContent = `${item.rooms} комн.  ·  ${numberFormat.format(item.area)} м²  ·  ${item.kind === 'house' ? 'Отдельный дом' : `${item.floor} этаж`}`;
+  // Старый работающий API может ещё не выдавать поле: не показываем ложное «Не указано».
+  if (item.renovation) {
+    const renovation = document.createElement('p'); renovation.className = 'form-note';
+    renovation.textContent = `Ремонт: ${renovationLabel(item.renovation)}`;
+    card.querySelector('.card-content').append(renovation);
+  }
   card.querySelector('.description').textContent = item.description;
   showPrice(card.querySelector('.price'), item);
   const status = card.querySelector('.availability');

@@ -1,24 +1,14 @@
-#include "database.h"
+#include "seed.h"
+#include <random>
+#include <algorithm>
+#include <cmath>
 
 #include <array>
 #include <iomanip>
 #include <sstream>
 
 namespace {
-struct DemoProperty {
-    std::string key;
-    std::string kind;
-    std::string address;
-    std::string district;
-    double area;
-    int rooms;
-    int floor;
-    std::string dealType;
-    std::int64_t price;
-    std::string description;
-    double latitude;
-    double longitude;
-};
+
 
 // Стабильные ключи, фиксированные данные: генератор воспроизводим, без случайности.
 const std::array<DemoProperty, 12> demoProperties{{
@@ -48,7 +38,9 @@ const std::array<DemoProperty, 12> demoProperties{{
      "Дом с большой гостиной, кабинетом и участком. Пространство для семейных встреч.", 40.2240, 44.5370}
 }};
 
-DemoProperty makeDemoProperty(int number) {
+}
+
+DemoProperty legacyDemoProperty(int number) {
     if (number <= 12) return demoProperties.at(static_cast<std::size_t>(number - 1));
     const std::array<std::string, 9> districts{
         "Кентрон", "Арабкир", "Нор Норк", "Аджапняк", "Аван",
@@ -85,18 +77,65 @@ DemoProperty makeDemoProperty(int number) {
         40.1872, 44.5152};
 }
 
+// Это коэффициенты учебного набора, не сведения о рыночных ценах.
+std::int64_t demoPrice(double area, const std::string& district, const std::string& kind,
+                       const std::string& deal, const std::string& renovation, int deviationPercent) {
+    const std::array<std::string, 9> districts{"Кентрон", "Арабкир", "Нор Норк", "Аджапняк", "Аван",
+        "Шенгавит", "Эребуни", "Малатия-Себастия", "Канакер-Зейтун"};
+    const std::array<int, 9> rentRates{5000, 3900, 2800, 2700, 3100, 2500, 2400, 2600, 3200};
+    const std::array<int, 9> saleRates{850000, 670000, 460000, 440000, 520000, 410000, 400000, 430000, 540000};
+    const auto districtIt = std::find(districts.begin(), districts.end(), district);
+    const std::array<std::string, 4> repairs{"needs_repair", "cosmetic", "good", "designer"};
+    const auto repairIt = std::find(repairs.begin(), repairs.end(), renovation);
+    if (districtIt == districts.end() || repairIt == repairs.end() || area <= 0 || area > 10000 ||
+        !std::isfinite(area) || (kind != "house" && kind != "apartment") ||
+        (deal != "rent" && deal != "sale") || deviationPercent < -8 || deviationPercent > 8)
+        throw std::invalid_argument("Invalid demo pricing input");
+    const auto d = static_cast<std::size_t>(districtIt - districts.begin());
+    const auto r = static_cast<std::size_t>(repairIt - repairs.begin());
+    const bool rent = deal == "rent";
+    const std::array<int, 4> rentRepair{60, 80, 100, 130}, saleRepair{65, 85, 100, 125};
+    const int typePercent = kind == "house" ? (rent ? 105 : 85) : 100;
+    const double base = area * (rent ? rentRates[d] : saleRates[d]) * typePercent / 100.0
+        * (rent ? rentRepair[r] : saleRepair[r]) / 100.0;
+    const int rounding = rent ? 1000 : 50000;
+    return static_cast<std::int64_t>(std::llround(base * (100 + deviationPercent) / 100.0 / rounding)) * rounding;
+}
+
+DemoProperty demoProperty(int number) {
+    auto item = legacyDemoProperty(number); // Сохраняем ключ, тип сделки, район и адрес.
+    // Отдельная последовательность на объект: пропуск соседа не сдвигает остальные данные.
+    std::mt19937 random(20260913u + static_cast<unsigned>(number));
+    const auto between = [&random](int low, int high) { return low + static_cast<int>(random() % (high - low + 1)); };
+    const bool house = item.kind == "house";
+    item.rooms = house ? between(3, 7) : between(1, 5);
+    item.area = house ? item.rooms * 25 + 30 + between(0, 600) / 10.0
+                      : item.rooms * 18 + 10 + between(0, 250) / 10.0;
+    item.floor = house ? 0 : between(1, 16); // 0 у дома означает объект целиком, не число этажей дома.
+    const std::array<std::string, 4> repairs{"needs_repair", "cosmetic", "good", "designer"};
+    const std::array<std::string, 4> labels{"требует ремонта", "косметический", "хороший", "дизайнерский"};
+    const auto repair = static_cast<std::size_t>(between(0, 3));
+    item.renovation = repairs[repair];
+    item.price = demoPrice(item.area, item.district, item.kind, item.dealType, item.renovation, between(-8, 8));
+    item.description = "Демонстрационный объект № " + std::to_string(number) + ". " +
+        (house ? "Дом целиком. " : "Квартира. ") + "Комнат: " + std::to_string(item.rooms) +
+        ". Состояние ремонта: " + labels[repair] + ". " +
+        (repair == 0 ? "Нужны восстановительные и отделочные работы. " : "Состояние задано для учебного примера. ") +
+        "Адрес, характеристики и цена демонстрационные, не рыночная оценка. "
+        "Фотографии — иллюстрации; они не показывают ремонт этого объекта.";
+    return item;
 }
 
 void seedDemoData(Database& db) {
     db.execute("BEGIN IMMEDIATE");
     try {
         for (int number = 1; number <= 1000; ++number) {
-            const auto item = makeDemoProperty(number);
+            const auto item = demoProperty(number);
             Statement property(db.handle(), R"SQL(
                 INSERT INTO properties
                     (demo_key, kind, address, district, area, rooms, floor,
-                     description, latitude, longitude)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     description, latitude, longitude, renovation, demo_revision)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)
                 ON CONFLICT(demo_key) DO NOTHING
             )SQL");
             property.bind(1, std::string(item.key));
@@ -109,6 +148,7 @@ void seedDemoData(Database& db) {
             property.bind(8, std::string(item.description));
             property.bind(9, item.latitude);
             property.bind(10, item.longitude);
+            property.bind(11, item.renovation);
             property.step();
 
             // Существующий объект полностью пропускаем: его цена, статус,

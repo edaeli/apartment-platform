@@ -85,7 +85,7 @@ with tempfile.TemporaryDirectory(prefix="apartment-http-") as temporary:
             catalog = get_json("/api/listings")
             check(catalog["count"] == len(catalog["items"]) == 24 and catalog["total"] == 1000, "Expected 24 of 1000 listings")
             check(catalog["page"] == 1 and catalog["page_size"] == 24 and catalog["total_pages"] == 42, "Wrong pagination metadata")
-            check(health["schema_version"] == 5, "Migration not applied")
+            check(health["schema_version"] == 6, "Migration not applied")
             check(get_json("/api/listings?type=rent")["total"] == 500, "Wrong rent count")
             check(get_json("/api/listings?type=sale")["total"] == 500, "Wrong sale count")
             check(request("/api/listings?type=wrong")[0] == 400, "Invalid type accepted")
@@ -168,8 +168,9 @@ with tempfile.TemporaryDirectory(prefix="apartment-http-") as temporary:
                 check(status == 400 and json.loads(body).get("error"), f"Expected understandable 400: {query}")
 
             detail = get_json("/api/listings/1")
-            check(detail["id"] == 1 and detail["property_id"] == 1 and detail["price"] == 280000, "Wrong detail data")
+            check(detail["id"] == 1 and detail["property_id"] == 1 and detail["price"] == next(row["price"] for row in source if row["id"] == 1), "Wrong detail data")
             check(len(detail["photos"]) == 3 and detail["description"], "Incomplete detail")
+            check(detail["renovation"] in ("needs_repair", "cosmetic", "good", "designer"), "Missing renovation")
             for _ in range(2):
                 status, body, _ = request("/listings/1")
                 check(status == 200 and b'listing.js' in body, "Direct detail/reload failed")

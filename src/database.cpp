@@ -103,7 +103,7 @@ void Database::migrate(const std::string& schemaPath) {
     execute("BEGIN IMMEDIATE");
     try {
         const auto version = scalar("PRAGMA user_version");
-        if (version < 0 || version > 5) {
+        if (version < 0 || version > 6) {
             throw std::runtime_error("Unsupported database schema version");
         }
         const std::vector<std::string> migrations{
@@ -111,9 +111,10 @@ void Database::migrate(const std::string& schemaPath) {
             (std::filesystem::path(schemaPath).parent_path() / "002_catalog_indexes.sql").string(),
             (std::filesystem::path(schemaPath).parent_path() / "003_users_bookings.sql").string(),
             (std::filesystem::path(schemaPath).parent_path() / "004_resale_origin.sql").string(),
-            (std::filesystem::path(schemaPath).parent_path() / "005_personalization.sql").string()
+            (std::filesystem::path(schemaPath).parent_path() / "005_personalization.sql").string(),
+            (std::filesystem::path(schemaPath).parent_path() / "006_demo_renovation.sql").string()
         };
-        for (auto next = version + 1; next <= 5; ++next) {
+        for (auto next = version + 1; next <= 6; ++next) {
             const auto& path = migrations.at(static_cast<std::size_t>(next - 1));
             std::ifstream file(path);
             if (!file) throw std::runtime_error("Cannot read schema: " + path);
@@ -157,7 +158,7 @@ const std::string columns = R"SQL(
     l.id, l.property_id, l.price, l.deal_type, l.status,
     p.kind, p.address, p.district, p.description, p.area,
     p.latitude, p.longitude, p.rooms, p.floor,
-    l.seller_user_id, l.source_booking_id, l.created_at
+    l.seller_user_id, l.source_booking_id, l.created_at, p.renovation
 )SQL";
 const std::string tables = " FROM listings AS l JOIN properties AS p ON p.id = l.property_id";
 
@@ -183,9 +184,10 @@ std::vector<Listing> readListings(Statement& query) {
             if (!query.isNull(14)) item.sellerUserId = query.integer(14);
             if (!query.isNull(15)) item.sourceBookingId = query.integer(15);
             item.createdAt = query.text(16);
+            item.renovation = query.text(17);
             result.push_back(item);
         }
-        if (!query.isNull(17)) result.back().photos.push_back({query.text(17), query.text(18)});
+        if (!query.isNull(18)) result.back().photos.push_back({query.text(18), query.text(19)});
     }
     return result;
 }

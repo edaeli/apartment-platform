@@ -37,7 +37,8 @@ function renderDetail(item) {
   const characteristics = document.querySelector('#characteristics');
   characteristics.replaceChildren();
   for (const [name, value] of [
-    ['Объявление', `№ ${item.id}`], ['Тип объекта', item.kind === 'house' ? 'Дом' : 'Квартира'],
+    ['Объявление', `№ ${item.id}`],
+    ...(item.renovation ? [['Ремонт', renovationLabel(item.renovation)]] : []), ['Тип объекта', item.kind === 'house' ? 'Дом' : 'Квартира'],
     ['Площадь', `${numberFormat.format(item.area)} м²`], ['Комнат', item.rooms],
     ['Этаж', item.kind === 'house' ? 'Объект целиком' : item.floor], ['Район', item.district]
   ]) {

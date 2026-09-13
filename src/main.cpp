@@ -1,4 +1,5 @@
 #include "database.h"
+#include "seed.h"
 #include "http_helpers.h"
 #include "auth.h"
 
@@ -19,6 +20,7 @@ struct Options {
     fs::path db;
     int port = 8080;
     bool initOnly = false;
+    bool previewDemo = false, refreshDemo = false;
     bool secureCookies = false;
     std::string origin;
 };
@@ -27,6 +29,8 @@ Options parseOptions(int argc, char* argv[]) {
     Options options;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
+        if (argument == "--preview-demo-update") { options.previewDemo = true; continue; }
+        if (argument == "--update-demo-data") { options.refreshDemo = true; continue; }
         if (argument == "--secure-cookies") { options.secureCookies = true; continue; }
         if (argument == "--init-db") {
             options.initOnly = true;
@@ -48,6 +52,8 @@ Options parseOptions(int argc, char* argv[]) {
             }
         }
     }
+    if (static_cast<int>(options.initOnly) + options.previewDemo + options.refreshDemo > 1)
+        throw std::runtime_error("Choose only one initialization/demo command");
     options.root = fs::absolute(options.root).lexically_normal();
     if (options.db.empty()) options.db = options.root / "data/apartments.sqlite3";
     options.db = fs::absolute(options.db).lexically_normal();
@@ -126,7 +132,7 @@ ListingFilters parseFilters(const drogon::HttpRequestPtr& request) {
 int main(int argc, char* argv[]) {
     try {
         if (argc == 2 && std::string(argv[1]) == "--help") {
-            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db] [--secure-cookies] [--origin https://example.com]\n"
+            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db | --preview-demo-update | --update-demo-data] [--secure-cookies] [--origin https://example.com]\n"
                       << "Default root: current directory. Default database: ROOT/data/apartments.sqlite3\n";
             return 0;
         }
@@ -138,8 +144,15 @@ int main(int argc, char* argv[]) {
         }
         fs::create_directories(options.db.parent_path());
         {
-            Database db(options.db.string(), true);
+            Database db(options.db.string(), !options.previewDemo && !options.refreshDemo);
             db.migrate(schema.string());
+            if (options.previewDemo || options.refreshDemo) {
+                const auto result = refreshDemoData(db, options.refreshDemo);
+                std::cout << (options.refreshDemo ? "Updated: " : "Eligible: ") << result.eligible
+                          << ", protected: " << result.protectedCount << ", changed/ambiguous: " << result.changed
+                          << ", already current: " << result.alreadyCurrent << ", missing: " << result.missing << std::endl;
+                return 0;
+            }
             seedDemoData(db);
             std::cout << "Database: " << options.db.string() << '\n'
                       << "Properties: " << db.scalar("SELECT COUNT(*) FROM properties")
