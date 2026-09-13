@@ -18,6 +18,10 @@ let viewSent = false;
 let selectedPhotoUrl;
 function renderDetail(item) {
   currentListing = item;
+  // Возвращаем тот же узел результата рядом с действием после успешного повторного GET.
+  const action = document.querySelector('#booking-action');
+  const feedback = document.querySelector('#booking-feedback');
+  if (feedback.parentElement !== action) action.append(feedback);
   renderBookingAction();
   // Ответ чтения мог прийти, пока пользователь уже нажал кнопку избранного.
   // Сохраняем саму кнопку и её сообщение до завершения действия.
@@ -90,7 +94,11 @@ async function loadDetail() {
       detailMessage.textContent = response.status === 404
         ? 'Объявление не найдено. Проверьте адрес или вернитесь в каталог.'
         : item.error || 'Не удалось загрузить объявление.';
-      if (response.status === 404) detail.hidden = true;
+      if (response.status === 404) {
+        // Исчезновение объявления не должно спрятать уже полученный результат операции.
+        if (!bookingFeedback.hidden) detail.before(bookingFeedback);
+        detail.hidden = true;
+      }
       detailRetry.hidden = response.status < 500;
       return;
     }
@@ -128,13 +136,16 @@ function showBookingFeedback(message, outcome) {
   if (outcome !== 'pending') revealBookingFeedback();
 }
 function revealBookingFeedback() {
-  // Сообщение выше длинной галереи: после завершения перерисовки возвращаем его в поле зрения.
+  // Результат рядом с действием; после обновления данных возвращаем его в поле зрения.
   bookingFeedback.focus({ preventScroll: true });
   bookingFeedback.scrollIntoView({ block: 'center', behavior: 'instant' });
 }
 function renderBookingAction() {
   const button = document.querySelector('#book-button');
   const login = document.querySelector('#book-login');
+  const unavailable = currentListing.status !== 'available';
+  document.querySelector('#booking-unavailable').hidden = !unavailable;
+  document.querySelector('#booking-controls').hidden = unavailable;
   login.href = loginAddress();
   login.hidden = !Auth.state || !!Auth.state.user || currentListing.status !== 'available';
   const own = !!Auth.state?.user && currentListing.seller_user_id === Auth.state.user.id;
@@ -144,7 +155,13 @@ function renderBookingAction() {
   button.disabled = bookingPending;
 }
 bookButton.addEventListener('click', async () => {
-  if (bookingPending || currentListing?.status !== 'available') return;
+  if (bookingPending) return;
+  // Фоновый GET при фокусе окна мог опередить уже начатое нажатие.
+  // Молчаливый return здесь оставлял пользователя без результата и без POST/409.
+  if (currentListing?.status !== 'available') {
+    showBookingFeedback('Это жильё уже забронировали. Выберите другое объявление', 'error');
+    return;
+  }
   bookingPending = true;
   ++detailRequest; // Старое чтение не должно перекрыть результат нового действия.
   bookButton.disabled = true;

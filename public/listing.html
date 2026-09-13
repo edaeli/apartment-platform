@@ -22,10 +22,6 @@
     <a class="back-link" id="back-to-catalog" href="/#catalog">← Вернуться в каталог</a>
     <div class="message" id="detail-message" role="status">Загружаем объявление…</div>
     <button id="detail-retry" class="retry" type="button" hidden>Попробовать снова</button>
-    <section id="booking-feedback" class="booking-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
-      <p id="booking-message" class="form-message"></p>
-      <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
-    </section>
     <article id="listing-detail" hidden>
       <div class="detail-heading"><div><p class="eyebrow" id="detail-district"></p><h1 id="detail-title"></h1><p id="detail-address"></p></div><span id="detail-status" class="status-label"></span></div>
       <div class="detail-grid">
@@ -41,10 +37,17 @@
           <div id="detail-favorite"></div>
           <p id="view-message" class="form-note" role="status"></p>
           <p id="own-listing-note" class="form-note" hidden>Вы выставили это жильё на продажу. Забронировать собственное объявление нельзя.</p>
-          <div class="booking-action">
+          <div id="booking-action" class="booking-action">
             <p class="form-note">Действие создаёт бронирование внутри учебного сайта. Без оплаты и без реальной сделки.</p>
-            <button id="book-button" class="action-button" type="button" hidden></button>
-            <a id="book-login" class="primary-link" href="/login" hidden>Войти для бронирования</a>
+            <p id="booking-unavailable" class="form-note" role="status" hidden>Объявление недоступно для нового бронирования</p>
+            <div id="booking-controls">
+              <button id="book-button" class="action-button" type="button" hidden></button>
+              <a id="book-login" class="primary-link" href="/login" hidden>Войти для бронирования</a>
+            </div>
+            <section id="booking-feedback" class="booking-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
+              <p id="booking-message" class="form-message"></p>
+              <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
+            </section>
           </div>
           <p class="location-note">Местоположение указано по адресу и району. Точная точка на карте не публикуется: данные учебные.</p>
         </section>

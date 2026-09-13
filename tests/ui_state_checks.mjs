@@ -66,8 +66,7 @@ assert.equal(node('#booking-message').textContent, 'Бронирование с�
 assert.equal(node('#booking-account').hidden, false);
 assert.equal(node('#detail-retry').hidden, false);
 const html = await read('listing.html');
-assert.ok(html.indexOf('id="booking-message"') < html.indexOf('<article'));
-assert.ok(html.indexOf('id="booking-account"') < html.indexOf('<article'));
+// Иерархию настоящего HTML и видимость предков проверяет booking_ui_checks.mjs.
 console.log('PASS 5: результат бронирования вне скрываемого блока после ошибки обновления');
 const img = make(); context.img = img;
 run('showPhoto(img, null)'); assert.equal(img.src, '/images/placeholder.svg');
