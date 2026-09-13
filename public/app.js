@@ -29,10 +29,10 @@ function pageUrl(page) {
   params.set('page', String(page));
   return `/?${params}#catalog`;
 }
-function navigate(url) {
+function navigate(url, scrollToTop = false) {
   history.pushState(null, '', url);
   restoreForm();
-  loadListings();
+  return loadListings(scrollToTop);
 }
 function renderListing(item) { return listingCard(item, `/${location.search}#catalog`); }
 function renderPagination(data) {
@@ -65,7 +65,7 @@ function renderPagination(data) {
   });
   document.querySelector('#page-summary').textContent = `Страница ${data.page} из ${data.total_pages} · по ${data.page_size} объявлений`;
 }
-async function loadListings() {
+async function loadListings(scrollToTop = false) {
   await authReady;
   currentRequest?.abort();
   const controller = new AbortController();
@@ -100,6 +100,7 @@ async function loadListings() {
     firstPage.hidden = !(data.total > 0 && data.count === 0);
     firstPage.href = pageUrl(1);
     renderPagination(data);
+    if (scrollToTop === true) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   } catch (error) {
     if (controller.signal.aborted) return;
     message.textContent = `Не удалось загрузить каталог. ${error.message}`;
@@ -128,8 +129,7 @@ pagination.addEventListener('click', event => {
   const link = event.target.closest('a');
   if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
-  navigate(link.href);
-  document.querySelector('#catalog').scrollIntoView();
+  navigate(link.href, true);
 });
 retry.addEventListener('click', loadListings);
 window.addEventListener('popstate', () => { restoreForm(); loadListings(); });

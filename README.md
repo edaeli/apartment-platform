@@ -278,6 +278,7 @@ brew install node
 node tests/ui_state_checks.mjs
 python3 tests/prepare_dom_tests.py
 node tests/booking_ui_checks.mjs
+node tests/pagination_ui_checks.mjs
 ```
 
 Подготовка DOM скачивает фиксированную LinkeDOM 0.18.12 из npm, проверяет SHA-256 и сохраняет её только в игнорируемую `build/test-deps`. При повторе используется проверенный локальный архив. Node.js нужен только для этих дополнительных проверок.
