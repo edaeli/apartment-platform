@@ -17,12 +17,18 @@ let detailRequest = 0;
 let viewSent = false;
 let selectedPhotoUrl;
 function renderDetail(item) {
+  const becameReserved = currentListing?.status === 'available' && item.status === 'reserved';
   currentListing = item;
   // Возвращаем тот же узел результата рядом с действием после успешного повторного GET.
   const action = document.querySelector('#booking-action');
   const feedback = document.querySelector('#booking-feedback');
   if (feedback.parentElement !== action) action.append(feedback);
   renderBookingAction();
+  // Собственный POST имеет приоритет. Запоздалые GET также отсекаются detailRequest.
+  if (becameReserved && !bookingPending &&
+      !['success', 'error'].includes(feedback.dataset.outcome)) {
+    showBookingFeedback('Это жильё только что забронировали. Выберите другое объявление', 'warning');
+  }
   // Ответ чтения мог прийти, пока пользователь уже нажал кнопку избранного.
   // Сохраняем саму кнопку и её сообщение до завершения действия.
   if (!favoritePending.has(item.id)) {
@@ -132,8 +138,9 @@ function showBookingFeedback(message, outcome) {
   bookingFeedback.setAttribute('role', outcome === 'error' ? 'alert' : 'status');
   bookingFeedback.setAttribute('aria-live', outcome === 'error' ? 'assertive' : 'polite');
   bookingMessage.textContent = message;
+  document.querySelector('#booking-icon').textContent = { warning: '⚠', error: '⚠', success: '✓', info: 'ⓘ', pending: '…' }[outcome];
   document.querySelector('#booking-account').hidden = outcome !== 'success';
-  if (outcome !== 'pending') revealBookingFeedback();
+  if (outcome !== 'pending' && outcome !== 'info') revealBookingFeedback();
 }
 function revealBookingFeedback() {
   // Результат рядом с действием; после обновления данных возвращаем его в поле зрения.
@@ -144,7 +151,12 @@ function renderBookingAction() {
   const button = document.querySelector('#book-button');
   const login = document.querySelector('#book-login');
   const unavailable = currentListing.status !== 'available';
-  document.querySelector('#booking-unavailable').hidden = !unavailable;
+  // Нейтральное пояснение — только когда результата действия ещё нет.
+  if (unavailable && bookingFeedback.hidden && !bookingPending) {
+    showBookingFeedback('Объявление недоступно для нового бронирования', 'info');
+  } else if (!unavailable && bookingFeedback.dataset.outcome === 'info') {
+    bookingFeedback.hidden = true;
+  }
   document.querySelector('#booking-controls').hidden = unavailable;
   login.href = loginAddress();
   login.hidden = !Auth.state || !!Auth.state.user || currentListing.status !== 'available';
@@ -159,7 +171,7 @@ bookButton.addEventListener('click', async () => {
   // Фоновый GET при фокусе окна мог опередить уже начатое нажатие.
   // Молчаливый return здесь оставлял пользователя без результата и без POST/409.
   if (currentListing?.status !== 'available') {
-    showBookingFeedback('Это жильё уже забронировали. Выберите другое объявление', 'error');
+    showBookingFeedback('Не удалось забронировать: это жильё уже занято. Выберите другое объявление', 'error');
     return;
   }
   bookingPending = true;
@@ -179,7 +191,7 @@ bookButton.addEventListener('click', async () => {
       // Конфликт уже подтверждён сервером: повторное чтение может быть недоступно.
       currentListing.status = 'reserved';
       renderDetail(currentListing);
-      showBookingFeedback('Это жильё уже забронировали. Выберите другое объявление', 'error');
+      showBookingFeedback('Не удалось забронировать: это жильё уже занято. Выберите другое объявление', 'error');
     } else {
       showBookingFeedback(error.status ? error.message
         : 'Не удалось связаться с сервером или прочитать ответ. Бронирование не подтверждено. Проверьте «Мои бронирования» перед повтором.', 'error');

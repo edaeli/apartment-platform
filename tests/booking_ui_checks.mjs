@@ -16,7 +16,7 @@ function visible(element) {
     assert.notEqual(parent.style.visibility, 'hidden');
   }
 }
-const conflictText='Это жильё уже забронировали. Выберите другое объявление';
+const conflictText='Не удалось забронировать: это жильё уже занято. Выберите другое объявление';
 const response=(status,body,bad=false)=>({status,ok:status>=200&&status<300,json:async()=>{
   if(bad)throw new SyntaxError('invalid JSON'); return structuredClone(body);
 }});
@@ -114,11 +114,15 @@ console.log('PASS 5: HTTP 409 сохраняется даже при нечит�
 // Изменение сервера между открытием страницы и фокусом второго окна: POST ещё не было.
 const stale=await page(6,()=>{throw new Error('POST не должен вызываться');});
 stale.item.status='reserved'; await stale.focus();
-console.log('Before click: POST='+stale.calls()+', result hidden='+stale.node('#booking-feedback').hidden);
-
-assert.equal(stale.node('#booking-unavailable')?.textContent, 'Объявление недоступно для нового бронирования');
-visible(stale.node('#booking-unavailable'));
-assert.equal(stale.node('#booking-feedback').hidden,true);
+const warningText='Это жильё только что забронировали. Выберите другое объявление';
+assert.equal(stale.node('#booking-message').textContent,warningText);
+assert.equal(stale.node('#booking-feedback').dataset.outcome,'warning');
+assert.equal(stale.node('#booking-feedback').getAttribute('role'),'status');
+assert.equal(stale.node('#booking-icon').textContent,'⚠');
+assert.ok(stale.node('#booking-feedback').scrollCount>0);
+await stale.focus(); await stale.refresh();
+assert.equal(stale.node('#booking-message').textContent,warningText);
+visible(stale.node('#booking-message'));
 // Событие уже могло попасть в очередь, хотя фоновый GET успел скрыть кнопку.
 await stale.click();
 assert.equal(stale.calls(),0);
@@ -130,8 +134,9 @@ console.log('PASS 6: фоновое reserved без POST объяснено; р�
 for (const status of ['reserved','closed']) {
   const initial=await page(7,()=>{throw new Error('Unexpected POST');},false,status);
   await initial.refresh();
-  visible(initial.node('#booking-unavailable'));
-  assert.equal(initial.node('#booking-feedback').hidden,true);
+  visible(initial.node('#booking-message'));
+  assert.equal(initial.node('#booking-feedback').dataset.outcome,'info');
+  assert.equal(initial.node('#booking-message').textContent,'Объявление недоступно для нового бронирования');
   assert.equal(initial.node('#book-button').hidden,true);
   assert.equal(initial.node('#booking-account').hidden,true);
   assert.equal(initial.calls(),0);
@@ -155,4 +160,33 @@ assert.throws(()=>visible(loser.node('#booking-message')),/Скрытый пре
 loser.node('#listing-detail').hidden=false;
 visible(winner.node('#booking-message'));
 visible(loser.node('#booking-message'));
-console.log('8/8 групп: реальные HTML/DOM и обработчики. CSS layout и реальные клики в браузере НЕ проверены.');
+const successText=winner.node('#booking-message').textContent;
+await winner.focus(); await winner.refresh();
+assert.equal(winner.node('#booking-feedback').dataset.outcome,'success');
+assert.equal(winner.node('#booking-message').textContent,successText);
+assert.equal(winner.node('#booking-unavailable'),null);
+assert.equal(winner.node('#booking-account').hidden,false);
+let finishPost;
+const delayed=await page(9,()=>new Promise(resolve=>{finishPost=resolve;}));
+// GET стартует до POST, но его ответ приходит уже во время бронирования.
+const normalFetch=delayed.context.fetch;
+let resumeGet,signalGet;
+const getStarted=new Promise(resolve=>{signalGet=resolve;});
+delayed.context.fetch=(path,options)=>path==='/api/listings/1'
+  ? new Promise(resolve=>{resumeGet=()=>resolve(response(200,{...delayed.item,status:'reserved'}));signalGet();})
+  : normalFetch(path,options);
+const inFlightGet=delayed.refresh(); await getStarted;
+const pendingClick=delayed.click();
+resumeGet(); await inFlightGet;
+delayed.context.fetch=normalFetch;
+assert.equal(delayed.node('#booking-feedback').dataset.outcome,'pending');
+delayed.item.status='reserved';
+await delayed.focus(); await delayed.refresh();
+assert.equal(delayed.node('#booking-feedback').dataset.outcome,'pending');
+finishPost(response(201,{id:99,listing_id:1,status:'active'}));
+await pendingClick; await delayed.focus();
+assert.equal(delayed.node('#booking-feedback').dataset.outcome,'success');
+assert.equal(delayed.node('#booking-unavailable'),null);
+visible(delayed.node('#booking-message'));
+console.log('PASS 9: успех не заменяется фоновым предупреждением; во время POST ожидается его результат, дублей нет');
+console.log('9/9 групп: реальные HTML/DOM и обработчики. CSS layout и реальные клики в браузере НЕ проверены.');

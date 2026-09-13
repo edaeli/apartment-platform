@@ -39,12 +39,12 @@
           <p id="own-listing-note" class="form-note" hidden>Вы выставили это жильё на продажу. Забронировать собственное объявление нельзя.</p>
           <div id="booking-action" class="booking-action">
             <p class="form-note">Действие создаёт бронирование внутри учебного сайта. Без оплаты и без реальной сделки.</p>
-            <p id="booking-unavailable" class="form-note" role="status" hidden>Объявление недоступно для нового бронирования</p>
             <div id="booking-controls">
               <button id="book-button" class="action-button" type="button" hidden></button>
               <a id="book-login" class="primary-link" href="/login" hidden>Войти для бронирования</a>
             </div>
             <section id="booking-feedback" class="booking-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
+              <span id="booking-icon" class="booking-icon" aria-hidden="true"></span>
               <p id="booking-message" class="form-message"></p>
               <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
             </section>
