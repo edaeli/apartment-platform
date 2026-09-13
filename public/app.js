@@ -29,10 +29,10 @@ function pageUrl(page) {
   params.set('page', String(page));
   return `/?${params}#catalog`;
 }
-function navigate(url, scrollToTop = false) {
+function navigate(url, scrollToTabs = false) {
   history.pushState(null, '', url);
   restoreForm();
-  return loadListings(scrollToTop);
+  return loadListings(scrollToTabs);
 }
 function renderListing(item) { return listingCard(item, `/${location.search}#catalog`); }
 function renderPagination(data) {
@@ -65,7 +65,7 @@ function renderPagination(data) {
   });
   document.querySelector('#page-summary').textContent = `Страница ${data.page} из ${data.total_pages} · по ${data.page_size} объявлений`;
 }
-async function loadListings(scrollToTop = false) {
+async function loadListings(scrollToTabs = false) {
   await authReady;
   currentRequest?.abort();
   const controller = new AbortController();
@@ -100,7 +100,9 @@ async function loadListings(scrollToTop = false) {
     firstPage.hidden = !(data.total > 0 && data.count === 0);
     firstPage.href = pageUrl(1);
     renderPagination(data);
-    if (scrollToTop === true) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (scrollToTabs === true) {
+      document.querySelector('#catalog .tabs').scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+    }
   } catch (error) {
     if (controller.signal.aborted) return;
     message.textContent = `Не удалось загрузить каталог. ${error.message}`;

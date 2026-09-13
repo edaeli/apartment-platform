@@ -9,6 +9,8 @@ const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
 const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
 async function page(search='') {
   const {document,window:dom}=parseHTML(html), events={}, scrolls=[], requests=[];
+  const target=document.querySelector('#catalog .tabs');
+  target.scrollIntoView=options=>scrolls.push({target,...options});
   const location={search,origin:'http://localhost',pathname:'/'};
   const form=document.querySelector('#filters');
   form.elements={namedItem:name=>form.querySelector(`[name="${name}"]`)};
@@ -20,7 +22,7 @@ async function page(search='') {
   function Option(text,value){const option=document.createElement('option');option.textContent=text;option.value=value;return option;}
   const context=vm.createContext({document,location,Option,URLSearchParams,AbortController,
     history:{pushState(_state,_title,url){location.search=new URL(url,location.origin).search;}},
-    window:{addEventListener:(name,handler)=>{events[name]=handler;},scrollTo:options=>scrolls.push({...options})},
+    window:{addEventListener:(name,handler)=>{events[name]=handler;},scrollTo:()=>{throw new Error('Unexpected fixed document coordinate');}},
     authReady:Promise.resolve(),favoriteRevision:0,syncFavorites(){},listingCard(){throw new Error('Unexpected card');},
     numberFormat:new Intl.NumberFormat('ru'),console,
     fetch:(url,options)=>new Promise(resolve=>requests.push({url,options,resolve}))});
@@ -49,10 +51,10 @@ for(const search of ['', '?type=rent&district=%D0%9A%D0%B5%D0%BD%D1%82%D1%80%D0%
     const query=new URLSearchParams(p.location.search);assert.equal(query.get('page'),String(expectedPage));
     for(const [key,value] of filters)assert.equal(query.get(key),value);
     await p.answer();assert.equal(p.scrolls.length,before+1);
-    assert.deepEqual(p.scrolls.at(-1),{top:0,left:0,behavior:'instant'});
+    assert.deepEqual(p.scrolls.at(-1),{target:p.document.querySelector('#catalog .tabs'),block:'start',inline:'nearest',behavior:'instant'});
   }
 }
-console.log('PASS 1: вперёд/назад/номер — верх документа после успеха; с фильтрами и без, URL сохранён');
+console.log('PASS 1: вперёд/назад/номер — переключатели типа сделки после успеха; с фильтрами и без, URL сохранён');
 const p=await page('?page=2&sort=price_desc');
 await p.click('#next-page');await p.answer(500);assert.equal(p.scrolls.length,0);
 assert.equal(p.document.querySelector('#retry').hidden,false);
@@ -67,4 +69,4 @@ const superseding=p.run('loadListings()');await p.flush();
 const cancelled=await p.answer();assert.equal(cancelled.options.signal.aborted,true);
 assert.equal(p.scrolls.length,0);await p.answer();await superseding;assert.equal(p.scrolls.length,0);
 console.log('PASS 4: отменённый переход не прокручивает после запоздалого ответа');
-console.log('4/4 групп. Проверены обработчики и параметры scrollTo, не реальные клики/scrollY браузера.');
+console.log('4/4 групп. Проверены обработчики, ориентир и параметры scrollIntoView, не реальные клики/scrollY браузера.');

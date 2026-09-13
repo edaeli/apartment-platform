@@ -39,6 +39,8 @@ h2 { font-size: 29px; font-weight: 500; letter-spacing: -.8px; margin: 11px 0 0;
 .catalog-count { color: var(--muted); font-size: 12px; margin-bottom: 4px; white-space: nowrap; }
 .catalog-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 29px 0 25px; }
 .tabs { display: flex; gap: 4px; background: #edf0e8; padding: 4px; border-radius: 7px; }
+/* Шапка не закреплена; небольшой отступ над переключателями после пагинации. */
+#catalog .tabs { scroll-margin-top: 12px; }
 .tab { padding: 11px 23px; border: 0; background: transparent; color: #727b70; font-size: 12px; border-radius: 5px; }
 .tab:hover { color: var(--green); background: #e1e7da; }
 .tab.active { background: var(--green); color: white; }
