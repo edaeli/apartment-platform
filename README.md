@@ -276,6 +276,7 @@ ctest --test-dir build --output-on-failure
 # Только если Node.js отсутствует и нужна эта дополнительная проверка:
 brew install node
 node tests/ui_state_checks.mjs
+node tests/booking_ui_checks.mjs
 ```
 
 Тесты используют только память и временные отдельные базы; рабочую `data/apartments.sqlite3` не очищают.

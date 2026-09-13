@@ -230,6 +230,8 @@ with tempfile.TemporaryDirectory(prefix="apartment-auth-") as temporary:
                 winner = alice_id if results[0][0] == 201 else bob_id
                 loser = results[1] if results[0][0] == 201 else results[0]
                 check(loser[1]["error"] == "Это жильё уже забронировали", "Wrong conflict message")
+                if listing == 21:
+                    print("Concurrent HTTP evidence:", sorted(result[0] for result in results), "loser body:", json.dumps(loser[1], ensure_ascii=False))
                 check(rows("SELECT user_id,status FROM bookings WHERE listing_id=?", (listing,)) == [(winner, "active")], "Wrong winner or duplicate booking")
                 check(rows("SELECT status FROM listings WHERE id=?", (listing,)) == [("reserved",)], "Race left wrong listing status")
 

@@ -22,8 +22,10 @@
     <a class="back-link" id="back-to-catalog" href="/#catalog">← Вернуться в каталог</a>
     <div class="message" id="detail-message" role="status">Загружаем объявление…</div>
     <button id="detail-retry" class="retry" type="button" hidden>Попробовать снова</button>
-    <p id="booking-message" class="form-message" role="status"></p>
-    <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
+    <section id="booking-feedback" class="booking-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
+      <p id="booking-message" class="form-message"></p>
+      <a id="booking-account" class="inline-link" href="/my-bookings" hidden>Перейти в мои бронирования →</a>
+    </section>
     <article id="listing-detail" hidden>
       <div class="detail-heading"><div><p class="eyebrow" id="detail-district"></p><h1 id="detail-title"></h1><p id="detail-address"></p></div><span id="detail-status" class="status-label"></span></div>
       <div class="detail-grid">

@@ -11,6 +11,8 @@ class Element {
   replaceChildren(...children) { this.children = children; }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(name, handler) { this.listeners[name] = handler; }
+  focus() {}
+  scrollIntoView() {}
 }
 const all = [], ids = new Map();
 const make = () => { const node = new Element(); all.push(node); return node; };
@@ -20,7 +22,7 @@ const context = vm.createContext({
   document: {createElement: make, querySelector: node,
     querySelectorAll: selector => all.filter(item => String(item.dataset.favoriteId) === selector.match(/"(\d+)"/)[1])},
   window: {dispatchEvent() {}, addEventListener() {}}, CustomEvent: class {},
-  Auth: {state: {user: {id: 1}}, mutate: () => { ++calls; return new Promise(resolve => { resolveMutation = resolve; }); }, post: async () => ({message: 'Бронирование создано'})},
+  Auth: {state: {user: {id: 1}}, mutate: () => { ++calls; return new Promise(resolve => { resolveMutation = resolve; }); }, post: async () => ({id:10,listing_id:1,status:'active',message: 'Бронирование создано'})},
   authReady: Promise.resolve(), loginAddress: () => '/login',
   location: {pathname:'/listings/1', search:'', origin:'http://localhost:8080'},
   URL, URLSearchParams, console

@@ -229,3 +229,11 @@ button:disabled { opacity: .55; cursor: wait; }
 .detail-grid > *, .booking-card > *, .hero > * { min-width: 0; }
 .card-content, .detail-heading, .detail-info, .booking-card, .auth-panel { overflow-wrap: anywhere; }
 .action-button, .reset-button, .favorite-button, .primary-link { max-width: 100%; overflow-wrap: anywhere; }
+
+/* Результат действия остаётся вне скрываемой карточки и заметен после прокрутки. */
+.booking-feedback { position: sticky; top: 12px; z-index: 5; padding: 16px 20px; margin-bottom: 20px; border: 2px solid #697d65; border-radius: 8px; background: #f0f4eb; box-shadow: 0 3px 14px #263d3420; overflow-wrap: anywhere; }
+.booking-feedback .form-message { margin: 0; color: inherit; }
+.booking-feedback .inline-link { display: inline-block; margin-top: 8px; }
+.booking-feedback[data-outcome="error"] { color: #762c24; border-color: #a3483d; background: #fff0ed; }
+.booking-feedback[data-outcome="success"] { color: #234d34; border-color: #477453; background: #eef8ef; }
+.booking-feedback:focus { outline: 3px solid #ba812f; outline-offset: 3px; }

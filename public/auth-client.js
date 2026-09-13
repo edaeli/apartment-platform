@@ -17,11 +17,15 @@ const Auth = {
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.state.csrf_token },
       body: JSON.stringify(data)
     });
-    const result = await response.json();
+    // Сохраняем HTTP-статус даже при пустом/повреждённом JSON ошибки.
+    const result = await response.json().catch(() => null);
     if (!response.ok) {
-      const error = new Error(result.error || 'Не удалось выполнить действие.');
+      const error = new Error(result?.error || 'Не удалось выполнить действие.');
       error.status = response.status;
       throw error;
+    }
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw new Error('Сервер вернул некорректный ответ. Действие не подтверждено.');
     }
     if (result.csrf_token) {
       this.state = result;

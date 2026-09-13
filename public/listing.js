@@ -76,18 +76,21 @@ async function loadDetail() {
   if (bookingPending || favoritePending.has(Number(id))) return;
   const request = ++detailRequest;
   const revision = favoriteRevision;
-  detail.hidden = detailRetry.hidden = true;
+  // Фоновое чтение не прячет уже открытую страницу и не сдвигает кнопку/сообщение.
+  detail.hidden = !currentListing;
+  detailRetry.hidden = true;
   detailMessage.hidden = false;
   detailMessage.textContent = 'Загружаем объявление…';
   detail.setAttribute('aria-busy', 'true');
   try {
-    const response = await fetch(`/api/listings/${encodeURIComponent(id)}`);
+    const response = await fetch(`/api/listings/${encodeURIComponent(id)}`, { cache: 'no-store' });
     const item = await response.json();
     if (request !== detailRequest) return;
     if (!response.ok) {
       detailMessage.textContent = response.status === 404
         ? 'Объявление не найдено. Проверьте адрес или вернитесь в каталог.'
         : item.error || 'Не удалось загрузить объявление.';
+      if (response.status === 404) detail.hidden = true;
       detailRetry.hidden = response.status < 500;
       return;
     }
@@ -114,6 +117,21 @@ loadDetail();
 
 const bookButton = document.querySelector('#book-button');
 const bookingMessage = document.querySelector('#booking-message');
+const bookingFeedback = document.querySelector('#booking-feedback');
+function showBookingFeedback(message, outcome) {
+  bookingFeedback.hidden = false;
+  bookingFeedback.dataset.outcome = outcome;
+  bookingFeedback.setAttribute('role', outcome === 'error' ? 'alert' : 'status');
+  bookingFeedback.setAttribute('aria-live', outcome === 'error' ? 'assertive' : 'polite');
+  bookingMessage.textContent = message;
+  document.querySelector('#booking-account').hidden = outcome !== 'success';
+  if (outcome !== 'pending') revealBookingFeedback();
+}
+function revealBookingFeedback() {
+  // Сообщение выше длинной галереи: после завершения перерисовки возвращаем его в поле зрения.
+  bookingFeedback.focus({ preventScroll: true });
+  bookingFeedback.scrollIntoView({ block: 'center', behavior: 'instant' });
+}
 function renderBookingAction() {
   const button = document.querySelector('#book-button');
   const login = document.querySelector('#book-login');
@@ -126,19 +144,29 @@ function renderBookingAction() {
   button.disabled = bookingPending;
 }
 bookButton.addEventListener('click', async () => {
-  if (bookingPending) return;
+  if (bookingPending || currentListing?.status !== 'available') return;
   bookingPending = true;
   ++detailRequest; // Старое чтение не должно перекрыть результат нового действия.
   bookButton.disabled = true;
-  bookingMessage.textContent = 'Создаём бронирование…';
+  showBookingFeedback('Создаём бронирование…', 'pending');
   try {
     const result = await Auth.post(`/api/listings/${encodeURIComponent(id)}/book`);
-    bookingMessage.textContent = result.message;
+    if (!Number.isSafeInteger(result.id) || result.id <= 0 || result.listing_id !== Number(id) || result.status !== 'active') {
+      throw new Error('Некорректное подтверждение бронирования');
+    }
+    showBookingFeedback(result.message || 'Бронирование создано. Оплата не производится', 'success');
     currentListing.status = 'reserved';
     renderDetail(currentListing);
-    document.querySelector('#booking-account').hidden = false;
   } catch (error) {
-    bookingMessage.textContent = error.message;
+    if (error.status === 409) {
+      // Конфликт уже подтверждён сервером: повторное чтение может быть недоступно.
+      currentListing.status = 'reserved';
+      renderDetail(currentListing);
+      showBookingFeedback('Это жильё уже забронировали. Выберите другое объявление', 'error');
+    } else {
+      showBookingFeedback(error.status ? error.message
+        : 'Не удалось связаться с сервером или прочитать ответ. Бронирование не подтверждено. Проверьте «Мои бронирования» перед повтором.', 'error');
+    }
     if (error.status === 401 || error.status === 403) {
       try { await Auth.load(); renderBookingAction(); } catch { /* Сообщение исходной ошибки остаётся. */ }
     }
@@ -146,6 +174,7 @@ bookButton.addEventListener('click', async () => {
     bookingPending = false;
     renderBookingAction();
     await loadDetail();
+    revealBookingFeedback();
   }
 });
 
