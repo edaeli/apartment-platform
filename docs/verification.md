@@ -1,5 +1,27 @@
 # Фактически выполненные проверки
 
+## Подготовка Ubuntu 24.04 LTS — 14 сентября 2026
+
+Начальное состояние: `codex/ml-price-estimation`, `7ee72d7`, Git чистый. Требования не задавали Ubuntu-версию; выбрана 24.04 LTS. **Проверки в Ubuntu НЕ выполнены.** Docker/Podman/Colima/Lima/Multipass/Orb/QEMU CLI не найдены. Parallels не подключается к службе. После разрешённого чтения вне песочницы VirtualBox перечислил одну VM `linux`: настроенный тип Oracle Linux ARM64, сохранённое состояние, не запущена; это не подтверждённая Ubuntu-среда. UTM вернул ошибку автоматизации macOS −1743. Новые VM, системные пакеты и Docker на Mac не устанавливались, сохранённая VM не возобновлялась.
+
+Аудит: CMake использует find_package для SQLite/Drogon и find_path/find_library для sodium, импортированные targets, C++17; пути Homebrew/домашней папки в src/ml/tests/CMake не обнаружены. POSIX mkdtemp в ML-тесте доступен на Linux/macOS. Проверены 29 ссылок HTML на локальные ресурсы с точным регистром; коллизий регистра отслеживаемых путей нет. Фактических препятствий в исходниках не найдено, поэтому исходники/архитектура не менялись. Препятствия инструкции: только Homebrew-команды, отсутствие последовательности чистой Ubuntu-сборки и передачи неопубликованного ML. Добавлены ubuntu.md и дополнение к найденным внешним материалам защиты; README и checklist актуализированы.
+
+Реально выполнено на **macOS 15.0 (24A335), arm64**, Apple Clang 15.0.0, с уже установленными зависимостями:
+
+```sh
+cmake -S . -B build-portability-on -DCMAKE_BUILD_TYPE=Debug -DBUILD_PRICE_ML=ON -DBUILD_TESTING=ON -DCMAKE_PREFIX_PATH=/opt/homebrew -DSQLite3_ROOT=/opt/homebrew/opt/sqlite
+cmake --build build-portability-on -j 4
+ctest --test-dir build-portability-on --output-on-failure
+cmake -S . -B build-portability-off -DCMAKE_BUILD_TYPE=Debug -DBUILD_PRICE_ML=OFF -DBUILD_TESTING=ON -DCMAKE_PREFIX_PATH=/opt/homebrew -DSQLite3_ROOT=/opt/homebrew/opt/sqlite
+cmake --build build-portability-off -j 4
+ctest --test-dir build-portability-off --output-on-failure
+python3 tests/ml_http.py ./build-portability-off/apartment_server . ./build-portability-on/price_ml ./build-portability-on/ml_reference --disabled
+```
+
+Оба каталога сборки новые. **ON 12/12 (22,60 с), OFF 10/10 (19,79 с)**, дополнительная OFF-проверка прошла. CTest использует отдельные временные базы и свободные порты, серверы тестов завершаются. Включены HTTP-запуск, HTML/JS/CSS/SVG/JPEG, 1000 прогнозов/API, нижняя обрезка, отсутствующие/повреждённые модели, бронирование/гонки/откат/перепродажа и рекомендации. Рабочая база и сервер 8080 не использовались для тестов и не перезапускались.
+
+Ubuntu-команды установки и сборки Drogon из исходников сверены с upstream v1.9.13, но НЕ выполнены. Эта версия проверена на Mac, а не на Ubuntu. Реальные браузерные клики в данном шаге не выполнялись. Новых результатов DOM не заявляем. Перед сдачей требуется Ubuntu-проверка по [ubuntu.md](ubuntu.md); старые результаты и MAE сохраняются ниже. Сведения для материалов защиты: [portability-handoff.md](portability-handoff.md).
+
 ## Неположительный ML-прогноз №618 — 14 сентября 2026
 
 Основа `87baaf6`, ветка `codex/ml-price-estimation`, Git перед изменениями чистый. Получен реальный API-ответ 8082 для №618: sale, цена 9 200 000, оценка available/1 AMD. Прямой C++ расчёт с указанной тестовой базой/артефактами подтвердил raw **−2 722 760,8688851045 AMD** и прежний predict=1. Категории/численные признаки и преобразование цели проверены: выбрана правильная модель sale, unknown отсутствует. Причина — нижняя обрезка отрицательного результата линейной модели без признака этого состояния в API.
