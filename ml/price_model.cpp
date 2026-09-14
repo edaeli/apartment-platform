@@ -98,13 +98,16 @@ std::vector<double> Model::encode(const Row& r) const {
     }
     return x;
 }
-double Model::predict(const Row& row) const {
+Prediction Model::predictDetailed(const Row& row) const {
     require(row.deal==deal, "Use separate model for this deal");
     const auto x=encode(row);
     require(x.size()==coefficients.size(), "Invalid model dimensions");
     double prediction=targetMean+targetScale*std::inner_product(x.begin(),x.end(),coefficients.begin(),0.0);
     require(std::isfinite(prediction), "Non-finite prediction");
-    return std::max(1.0,prediction); // Явное ограничение цены, одинаковое при оценке и загрузке.
+    return {prediction, std::max(1.0,prediction), prediction < 1.0};
+}
+double Model::predict(const Row& row) const {
+    return predictDetailed(row).amount; // Старый алгоритм и метрики остаются без изменений.
 }
 Model train(const std::vector<Row>& rows,const std::string& deal) {
     require(rows.size()>=2, "Need at least two training objects");

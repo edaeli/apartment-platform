@@ -209,3 +209,14 @@ for(const value of [undefined, {status:'unavailable'}, {status:'available',amoun
 assert.ok(winner.node('.model-estimate').textContent.includes('Это не рыночная оценка'));
 console.log('PASS 10: реальная страница — оценка обеих сделок, округление, пояснение, отсутствие/невалидные числа/старый API');
 console.log('10/10 групп с ML UI. Визуальное отображение в браузере не проверено.');
+
+for (const status of ['unavailable','available']) {
+  winner.context.clippedFixture={status,reason:'lower_clipped',amount_amd:1};
+  vm.runInContext('currentListing.price_estimate=clippedFixture; renderDetail(currentListing)',winner.context);
+  assert.equal(winner.node('#model-price').textContent,'Учебная оценка для этого объекта недоступна');
+  visible(winner.node('#model-price'));
+}
+vm.runInContext("currentListing.deal_type='rent'; currentListing.price_estimate={status:'available',amount_amd:552674.0648185173}; renderDetail(currentListing)",winner.context);
+assert.ok(winner.node('#model-price').textContent.endsWith('в месяц'));
+assert.ok(winner.node('#model-price').textContent.includes('674'));
+console.log('PASS 11: нижняя обрезка не показывается как 1 AMD; положительная аренда сохранена');

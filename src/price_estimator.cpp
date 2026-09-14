@@ -27,7 +27,12 @@ Json::Value PriceEstimator::estimate(const Listing& item) const {
         // Цена объявления, ID и описание не передаются модели как признаки.
         price_ml::Row row{0,{item.area,static_cast<double>(item.rooms),static_cast<double>(item.floor)},
             {item.kind,item.district,item.renovation},0,item.dealType};
-        const double amount=model->predict(row);
+        const auto prediction=model->predictDetailed(row);
+        if(prediction.lowerClipped) {
+            result["reason"]="lower_clipped";
+            return result; // Техническая нижняя граница не является оценкой стоимости.
+        }
+        const double amount=prediction.amount;
         if(!std::isfinite(amount) || amount<1 || amount>9007199254740991.0)
             throw std::runtime_error("Prediction outside finite/safe JSON price range");
         result["status"]="available";result["amount_amd"]=amount;

@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix='apartment-ml-http-') as directory:
         assert result == {'status': 'unavailable'}, result
     def expected():
         output = subprocess.check_output([reference, db, models], text=True)
-        return {int(i): float(p) for i, p in (line.split() for line in output.splitlines())}
+        return {int(i): (float(p),float(raw),bool(int(clipped))) for i,p,raw,clipped in (line.split() for line in output.splitlines())}
     def restore():
         for deal, text in original.items():
             (models / (deal + '.model')).write_text(text)
@@ -82,8 +82,13 @@ with tempfile.TemporaryDirectory(prefix='apartment-ml-http-') as directory:
             predictions = expected()
             for listing, property_id in connection.execute('SELECT id, property_id FROM listings'):
                 result = get('/api/listings/' + str(listing))['price_estimate']
-                assert result['status'] == 'available'
-                assert abs(result['amount_amd']-predictions[property_id]) <= max(1e-7, abs(predictions[property_id])*1e-12)
+                amount, raw, clipped = predictions[property_id]
+                if clipped:
+                    assert raw < 1 and amount == 1
+                    assert result == {'status':'unavailable','reason':'lower_clipped'}
+                else:
+                    assert result['status'] == 'available'
+                    assert abs(result['amount_amd']-amount) <= max(1e-7, abs(amount)*1e-12)
             # Артефакты удалены после загрузки: HTTP не перечитывает их и не обучает модель.
             for path in models.glob('*.model'): path.unlink()
             for deal in ids: assert estimate(deal)['status'] == 'available'
@@ -112,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix='apartment-ml-http-') as directory:
             lines[3] = '-100 1 100'
             for i in range(8, len(lines)): lines[i] = lines[i].rsplit(' ', 1)[0] + ' 0'
             (models / 'rent.model').write_text('\n'.join(lines)+'\n')
-            start(); assert estimate('rent')['amount_amd'] == 1
+            start(); assert estimate('rent') == {'status':'unavailable','reason':'lower_clipped'}
             restore(); start()
             before = estimate('rent')['amount_amd']
             connection.execute('UPDATE listings SET price=price+123456 WHERE id=?', (ids['rent'],)); connection.commit()
@@ -120,7 +125,7 @@ with tempfile.TemporaryDirectory(prefix='apartment-ml-http-') as directory:
             connection.execute("UPDATE properties SET district='TEST_UNKNOWN' WHERE id=(SELECT property_id FROM listings WHERE id=?)", (ids['rent'],)); connection.commit()
             predictions = expected()
             prop = connection.execute('SELECT property_id FROM listings WHERE id=?', (ids['rent'],)).fetchone()[0]
-            assert abs(estimate('rent')['amount_amd']-predictions[prop]) < 1e-6
-            print('PASS: 1000 API/reference predictions, separate deals, startup-only load, missing/corrupt/version/wrong-deal models, prediction failure, min=1, unknown, no price leakage; source preserved before explicit fixture edits')
+            assert abs(estimate('rent')['amount_amd']-predictions[prop][0]) < 1e-6
+            print('PASS: 1000 API/reference predictions, separate deals, startup-only load, missing/corrupt/version/wrong-deal models, prediction failure, clipped estimate unavailable, unknown, no price leakage; source preserved before explicit fixture edits')
     finally:
         stop(); connection.close()

@@ -213,9 +213,11 @@ window.addEventListener('focus', loadDetail);
 function renderModelEstimate(item) {
   const estimate = item.price_estimate;
   const amount = estimate?.amount_amd;
-  const valid = estimate?.status === 'available' && typeof amount === 'number' &&
+  const valid = estimate?.status === 'available' && estimate.reason !== 'lower_clipped' && typeof amount === 'number' &&
     Number.isFinite(amount) && amount >= 1 && amount <= Number.MAX_SAFE_INTEGER;
   document.querySelector('#model-price').textContent = valid
     ? `Учебная оценка модели: ${numberFormat.format(Math.round(amount))} ֏ ${item.deal_type === 'rent' ? 'в месяц' : 'за объект'}`
-    : 'Учебная оценка модели недоступна';
+    : estimate?.reason === 'lower_clipped'
+      ? 'Учебная оценка для этого объекта недоступна'
+      : 'Учебная оценка модели недоступна';
 }

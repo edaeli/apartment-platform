@@ -9,7 +9,9 @@ int main(int argc,char** argv) {
         auto rent=price_ml::Model::load((std::filesystem::path(argv[2])/"rent.model").string());
         auto sale=price_ml::Model::load((std::filesystem::path(argv[2])/"sale.model").string());
         std::cout<<std::setprecision(17);
-        for(const auto& row:price_ml::readRows(argv[1]))
-            std::cout<<row.propertyId<<' '<<(row.deal=="rent"?rent:sale).predict(row)<<'\n';
+        for(const auto& row:price_ml::readRows(argv[1])) {
+            const auto p=(row.deal=="rent"?rent:sale).predictDetailed(row);
+            std::cout<<row.propertyId<<' '<<p.amount<<' '<<p.rawAmount<<' '<<p.lowerClipped<<'\n';
+        }
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }

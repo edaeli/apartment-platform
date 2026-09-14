@@ -43,6 +43,17 @@ int main(int argc,char** argv) {
         {std::ofstream bad(temp/"bad");bad<<"APARTMENT_RIDGE 1\n";}rejects([&]{Model::load((temp/"bad").string());});
         rejects([&]{auto r=known[0];r.deal="sale";model.predict(r);});
         std::cout<<"PASS: analytical ridge/QR, one-hot/unknown, no id/price features, constant data, finite predictions, exact serialization and invalid models\n";
+        auto clippedModel=model;
+        std::fill(clippedModel.coefficients.begin(),clippedModel.coefficients.end(),0);
+        clippedModel.targetScale=1;
+        for(double raw:{-100.0,0.0,0.5,1.0,2.0}) {
+            clippedModel.targetMean=raw;
+            const auto p=clippedModel.predictDetailed(known[0]);
+            check(p.rawAmount==raw && p.lowerClipped==(raw<1),"Clipping flag/boundary mismatch");
+            check(p.amount==std::max(1.0,raw) && clippedModel.predict(known[0])==p.amount,"Legacy prediction changed");
+            clippedModel.save(file);const auto loaded=Model::load(file);
+            check(loaded.predictDetailed(known[0]).lowerClipped==p.lowerClipped,"Clipping flag after load");
+        }
         const auto dbpath=(temp/"test.sqlite3").string();
         {
             Database db(dbpath, true); db.migrate(argv[1]);seedDemoData(db);

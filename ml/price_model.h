@@ -14,6 +14,7 @@ struct Row {
     std::string deal;
 };
 struct Split { std::vector<Row> train, test; };
+struct Prediction { double rawAmount, amount; bool lowerClipped; };
 struct Model {
     std::string deal;
     std::uint64_t splitSeed = seed;
@@ -24,6 +25,7 @@ struct Model {
     std::vector<double> coefficients;
     std::vector<std::string> featureNames() const;
     std::vector<double> encode(const Row& row) const;
+    Prediction predictDetailed(const Row& row) const;
     double predict(const Row& row) const;
     void save(const std::string& path) const;
     static Model load(const std::string& path);
