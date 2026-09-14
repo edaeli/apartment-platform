@@ -24,15 +24,15 @@ add_library(apartment_security src/security.cpp)
 target_include_directories(apartment_security PUBLIC src PRIVATE ${SODIUM_INCLUDE_DIR})
 target_link_libraries(apartment_security PUBLIC ${SODIUM_LIBRARY})
 
-add_executable(apartment_server src/main.cpp src/http_helpers.cpp src/auth.cpp)
+add_executable(apartment_server src/main.cpp src/http_helpers.cpp src/auth.cpp src/price_estimator.cpp)
 target_link_libraries(apartment_server PRIVATE apartment_db apartment_security Drogon::Drogon)
 
 foreach(target apartment_db apartment_security apartment_server)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
 
-# Необязательный CLI: сервер не связан с моделью и не запускает обучение.
-option(BUILD_PRICE_ML "Build standalone educational price estimator" OFF)
+# Необязательные CLI и прогнозы сервера: обучение запускается только вручную.
+option(BUILD_PRICE_ML "Build educational price CLI and optional server inference" OFF)
 if(BUILD_PRICE_ML)
     add_library(price_model ml/price_model.cpp ml/read_data.cpp)
     target_include_directories(price_model PUBLIC ml)
@@ -44,6 +44,8 @@ if(BUILD_PRICE_ML)
     target_compile_options(price_model PRIVATE -Wall -Wextra -Wpedantic)
     add_executable(price_ml ml/main.cpp)
     target_link_libraries(price_ml PRIVATE price_model)
+    target_link_libraries(apartment_server PRIVATE price_model)
+    target_compile_definitions(apartment_server PRIVATE BUILD_PRICE_ML=1)
 endif()
 
 include(CTest)
@@ -71,8 +73,17 @@ if(BUILD_TESTING)
     target_link_libraries(personalization_tests PRIVATE apartment_db)
     add_test(NAME personalization_database COMMAND personalization_tests ${PROJECT_SOURCE_DIR}/sql/001_initial.sql)
 
+    if(BUILD_PRICE_ML)
+        add_executable(ml_reference tests/ml_reference.cpp)
+        target_link_libraries(ml_reference PRIVATE price_model)
+    endif()
     # Python используется только для проверки HTTP, не для бизнес-логики.
     find_package(Python3 3.8 COMPONENTS Interpreter REQUIRED)
+    if(BUILD_PRICE_ML)
+        add_test(NAME ml_http COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/ml_http.py
+            $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR} $<TARGET_FILE:price_ml> $<TARGET_FILE:ml_reference>)
+        set_tests_properties(ml_http PROPERTIES TIMEOUT 90)
+    endif()
     add_test(NAME demo_http COMMAND ${Python3_EXECUTABLE}
         ${PROJECT_SOURCE_DIR}/tests/demo_http.py
         $<TARGET_FILE:apartment_server> ${PROJECT_SOURCE_DIR})

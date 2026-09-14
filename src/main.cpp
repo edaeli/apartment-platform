@@ -1,3 +1,4 @@
+#include "price_estimator.h"
 #include "database.h"
 #include "seed.h"
 #include "http_helpers.h"
@@ -23,6 +24,7 @@ struct Options {
     bool previewDemo = false, refreshDemo = false;
     bool secureCookies = false;
     std::string origin;
+    std::string modelsDir;
 };
 
 Options parseOptions(int argc, char* argv[]) {
@@ -36,7 +38,7 @@ Options parseOptions(int argc, char* argv[]) {
             options.initOnly = true;
             continue;
         }
-        if (argument != "--root" && argument != "--db" && argument != "--port" && argument != "--origin") {
+        if (argument != "--root" && argument != "--db" && argument != "--port" && argument != "--origin" && argument != "--models-dir") {
             throw std::runtime_error("Unknown option: " + argument + ". Use --help.");
         }
         if (++i == argc) throw std::runtime_error("Missing value for " + argument);
@@ -44,6 +46,7 @@ Options parseOptions(int argc, char* argv[]) {
         if (argument == "--root") options.root = value;
         if (argument == "--db") options.db = value;
         if (argument == "--origin") options.origin = value;
+        if (argument == "--models-dir") options.modelsDir = fs::absolute(value).lexically_normal().string();
         if (argument == "--port") {
             const auto result = std::from_chars(value.data(), value.data() + value.size(), options.port);
             if (result.ec != std::errc{} || result.ptr != value.data() + value.size()
@@ -132,7 +135,7 @@ ListingFilters parseFilters(const drogon::HttpRequestPtr& request) {
 int main(int argc, char* argv[]) {
     try {
         if (argc == 2 && std::string(argv[1]) == "--help") {
-            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db | --preview-demo-update | --update-demo-data] [--secure-cookies] [--origin https://example.com]\n"
+            std::cout << "Usage: apartment_server [--root PATH] [--db PATH] [--port 8080] [--init-db | --preview-demo-update | --update-demo-data] [--secure-cookies] [--origin https://example.com] [--models-dir PATH]\n"
                       << "Default root: current directory. Default database: ROOT/data/apartments.sqlite3\n";
             return 0;
         }
@@ -160,6 +163,7 @@ int main(int argc, char* argv[]) {
         }
         if (options.initOnly) return 0;
 
+        const PriceEstimator priceEstimator(options.modelsDir);
         const std::string dbPath = options.db.string();
         auto& app = drogon::app();
         AuthService auth(dbPath, publicPath.string(), options.port, options.secureCookies, options.origin);
@@ -215,7 +219,7 @@ int main(int argc, char* argv[]) {
             }, {drogon::Get});
 
         app.registerHandler("/api/listings/{1}",
-            [dbPath, &auth](const drogon::HttpRequestPtr& request,
+            [dbPath, &auth, &priceEstimator](const drogon::HttpRequestPtr& request,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback,
                      const std::string& value) {
                 try {
@@ -228,7 +232,9 @@ int main(int argc, char* argv[]) {
                     }
                     std::vector<Listing> items{*item};
                     db.markFavorites(items, auth.currentUserId(request));
-                    callback(jsonResponse(listingToJson(items.front())));
+                    auto json = listingToJson(items.front());
+                    json["price_estimate"] = priceEstimator.estimate(items.front());
+                    callback(jsonResponse(json));
                 } catch (const std::invalid_argument& error) {
                     callback(errorResponse(error.what(), drogon::k400BadRequest));
                 } catch (const std::exception& error) {

@@ -162,7 +162,9 @@ void Model::save(const std::string& path) const {
     out.close(); require(bool(out),"Failed to write model");
 }
 Model Model::load(const std::string& path) {
-    std::ifstream in(path); Model m; std::string magic,target; int version=0;
+    std::ifstream in(path);
+    require(bool(in), "Cannot open model file: " + path);
+    Model m; std::string magic,target; int version=0;
     in>>magic>>version;
     require(magic=="APARTMENT_RIDGE" && version==1,"Unsupported model format");
     in>>std::quoted(m.deal)>>m.splitSeed>>m.lambda>>target>>m.targetMean>>m.targetScale>>m.baseline;

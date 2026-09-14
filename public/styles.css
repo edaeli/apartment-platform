@@ -243,3 +243,6 @@ button:disabled { opacity: .55; cursor: wait; }
 .booking-icon { display: block; font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
 .booking-feedback[data-outcome="warning"] { color: #624009; border-color: #93600b; background: #fff4d5; }
 .booking-feedback[data-outcome="info"] { color: #34463e; border-color: #697d65; background: #f0f4eb; }
+
+.model-estimate { padding: 12px 0; border-block: 1px solid var(--line); margin-bottom: 18px; }
+.model-estimate > p:first-child { font-weight: 600; }

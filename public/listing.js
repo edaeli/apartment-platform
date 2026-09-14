@@ -41,6 +41,7 @@ function renderDetail(item) {
   document.querySelector('#detail-description').textContent = item.description;
   document.querySelector('#detail-deal').textContent = item.deal_type === 'rent' ? 'Аренда' : 'Продажа';
   showPrice(document.querySelector('#detail-price'), item);
+  renderModelEstimate(item);
   const status = document.querySelector('#detail-status');
   status.textContent = { available: 'Доступно', reserved: 'Забронировано', closed: 'Закрыто' }[item.status] || item.status;
   status.dataset.status = item.status;
@@ -208,3 +209,13 @@ bookButton.addEventListener('click', async () => {
 });
 
 window.addEventListener('focus', loadDetail);
+
+function renderModelEstimate(item) {
+  const estimate = item.price_estimate;
+  const amount = estimate?.amount_amd;
+  const valid = estimate?.status === 'available' && typeof amount === 'number' &&
+    Number.isFinite(amount) && amount >= 1 && amount <= Number.MAX_SAFE_INTEGER;
+  document.querySelector('#model-price').textContent = valid
+    ? `Учебная оценка модели: ${numberFormat.format(Math.round(amount))} ֏ ${item.deal_type === 'rent' ? 'в месяц' : 'за объект'}`
+    : 'Учебная оценка модели недоступна';
+}

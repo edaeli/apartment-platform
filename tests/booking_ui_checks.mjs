@@ -190,3 +190,22 @@ assert.equal(delayed.node('#booking-unavailable'),null);
 visible(delayed.node('#booking-message'));
 console.log('PASS 9: успех не заменяется фоновым предупреждением; во время POST ожидается его результат, дублей нет');
 console.log('9/9 групп: реальные HTML/DOM и обработчики. CSS layout и реальные клики в браузере НЕ проверены.');
+// Оценка проходит через настоящий renderDetail, не через отдельный форматтер.
+for (const deal of ['rent','sale']) {
+  vm.runInContext(`currentListing.deal_type='${deal}'; currentListing.price_estimate={status:'available',amount_amd:123456.75}; renderDetail(currentListing)`,winner.context);
+  const text=winner.node('#model-price').textContent;
+  assert.ok(text.startsWith('Учебная оценка модели:'));
+  assert.ok(text.endsWith(deal==='rent'?'в месяц':'за объект'));
+  assert.ok(text.includes('123') && text.includes('457'));
+  visible(winner.node('#model-price'));
+}
+for(const value of [undefined, {status:'unavailable'}, {status:'available',amount_amd:NaN},
+  {status:'available',amount_amd:Infinity},{status:'available',amount_amd:0},
+  {status:'available',amount_amd:'<script>alert(1)</script>'},{status:'available',amount_amd:1e20}]) {
+  winner.context.estimateFixture=value;
+  vm.runInContext('currentListing.price_estimate=estimateFixture; renderDetail(currentListing)',winner.context);
+  assert.equal(winner.node('#model-price').textContent,'Учебная оценка модели недоступна');
+}
+assert.ok(winner.node('.model-estimate').textContent.includes('Это не рыночная оценка'));
+console.log('PASS 10: реальная страница — оценка обеих сделок, округление, пояснение, отсутствие/невалидные числа/старый API');
+console.log('10/10 групп с ML UI. Визуальное отображение в браузере не проверено.');
